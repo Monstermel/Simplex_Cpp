@@ -1,0 +1,13 @@
+Informacion:
+2
+
+Variables: 
+0 x1 inf
+0 x2 inf
+
+Restriciones:
+2 1 > 6
+3 2 = 4	
+
+Objetivo:
+max 3 0
