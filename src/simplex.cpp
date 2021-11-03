@@ -16,8 +16,7 @@
 namespace optimization {
 
 
-    Simplex::Simplex(char const* _name)
-        : name(_name), solution_dimension(0), changed_sign(false), inverse_recalculation_rate(10) {}
+    Simplex::Simplex(char const* _name) : name(_name), solution_dimension(0), changed_sign(false) {}
 
     Simplex::~Simplex() {
         std::vector<Variable*>::iterator it;
@@ -30,11 +29,11 @@ namespace optimization {
 
     void Simplex::add_variable(Variable* variable) { variables.push_back(variable); }
 
-    bool Simplex::has_solutions() const { return !overconstrained; }
+    bool Simplex::has_solution() const { return optimal; }
 
-    bool Simplex::is_unlimited() const { return unlimited; }
+    bool Simplex::is_feasible() const { return feasible; }
 
-    bool Simplex::must_be_fixed() const { return has_to_be_fixed; }
+    bool Simplex::is_bounded() const { return bounded; }
 
     void Simplex::load_problem(char const* problem_name) {
         std::ifstream file(problem_name);
@@ -431,186 +430,104 @@ namespace optimization {
             log();
         }
     }
-    /*
-        void Simplex::solve() {
-            ColumnSet initial_base;
 
-            // Create alias to *this
-            Simplex& original_problem = *this;
-
-            // Create problem to work on
-            Simplex standard_form_problem = original_problem;
-
-            has_to_be_fixed = false;
-
-            log();
-
-            // Preprocessing
-            if (VERBOSE) std::cout << "Generating problem in standard form ...";
-
-            standard_form_problem.process_to_standard_form();
-
-            if (VERBOSE) {
-                std::cout << " done." << std::endl;
-                standard_form_problem.log();
-            }
-
-            // Generate and solve artificial problem
-            {
-                // Create copy of standard form problem to create artificial problem
-                Simplex artificial_problem = standard_form_problem;
-
-                if (VERBOSE) std::cout << "Generating artificial problem ...";
-
-                artificial_problem.process_to_artificial_problem();
-
-                if (VERBOSE) {
-                    std::cout << " done." << std::endl;
-                    artificial_problem.log();
-                }
-
-                // Use artificial problem suggested base to solve it
-                if (VERBOSE) std::cout << "Solving artificial problem ..." << std::endl;
-
-                artificial_problem.solve_with_base(artificial_problem.suggested_base);
-
-                if (VERBOSE) std::cout << "Done." << std::endl;
-
-                if (artificial_problem.solution_value != 0) {
-                    if (VERBOSE) std::cout << "Problem has no solution." << std::endl;
-
-                    overconstrained = true;
-                    return;
-                } else {
-                    overconstrained = false;
-
-                    if (VERBOSE) {
-                        std::cout << "Suggested initial base for original problem:";
-                        artificial_problem.current_base.log(" ");
-                    }
-
-                    // If initial base doesn't contain artificial variables
-                    // I can just use it, otherwise it may contain an artificial
-                    // variable.
-
-                    // Check for existence of a column index related  to an artificial
-                    // variable by reading costs vector
-                    int artificial_variable = -1;
-
-                    for (int i = 0; i < artificial_problem.solution_dimension; ++i)
-                        if (artificial_problem.objective_function.coefficients(i) == 1 &&
-                            artificial_problem.current_base.contains(i))
-                            artificial_variable = i;
-
-                    // If index is still -1 (no artificial variables)
-                    if (artificial_variable == -1) {
-                        if (VERBOSE)
-                            std::cout << "Base is clear about artificial variables, proceed ..."
-                                      << std::endl;
-
-                        standard_form_problem.suggested_base = artificial_problem.current_base;
-
-                    } else {
-                        //
-                        //      If an artificial variable exists ... I can change the i (artificial)
-                        //      column with a j column in current_out_of base so that//
-                        //              *   j is not an auxiliary variable
-                        //              *   (B^-1)_q * A^j != 0
-                        //
-
-                        if (VERBOSE)
-                            std::cout << "Artificial variable detected in base: " <<
-       artificial_variable
-                                      << std::endl;
-                        int  q = artificial_problem.current_base.index_of(artificial_variable);
-                        Mtrx bi_row_q(1, (int) artificial_problem.current_base.size());
-
-                        for (unsigned int k = 0; k < artificial_problem.current_base.size(); ++k)
-                            bi_row_q(k) = artificial_problem.base_inverse(q, k);
-
-                        // Find j
-                        int j = -1;
-                        for (unsigned int i = 0;
-                             i < standard_form_problem.current_out_of_base.size() && j == -1; ++i) {
-                            // Pick the ones that doesn't refer to an artificial variable
-                            if (artificial_problem.costs(i) == 0) {
-                                Mtrx column_j((int) standard_form_problem.current_base.size(), 1);
-
-                                for (unsigned int k = 0; k <
-       standard_form_problem.current_base.size();
-                                     ++k)
-                                    column_j(k) = artificial_problem.coefficients_matrix(k, i);
-
-                                if ((double) (bi_row_q * column_j) != 0) j = i;
-                            }
-                        }
-
-                        if (j != -1) {
-                            // Found a j, substitute artificial_value with j
-                            standard_form_problem.suggested_base = artificial_problem.current_base;
-                            standard_form_problem.suggested_base.substitute(artificial_variable, j);
-                            if (VERBOSE)
-                                standard_form_problem.suggested_base.log("Now initial base is");
-
-                        } else {
-                            //    I didn't find a j which respected the requirements.
-                            //    It may happen that for each j we have (B^-1)_q * A^j = 0,
-                            //    this means that the rows of A are linearly dependent and
-                            //    we can eliminate one of them. Let d be
-                            //            d = e_q * B^-1
-                            //    We have to eliminate a row for which d is non-zero.
-
-
-                            std::cout << "Constraints are linearly dependent!" << std::endl;
-
-                            // Find a constraint to eliminate (change)
-                            int change = -1;
-                            for (unsigned int i = 0;
-                                 i < standard_form_problem.constraints.size() && change == -1; ++i)
-                                if (bi_row_q(i) != 0) change = i;
-
-                            std::cout << "Constraint #" << change << " must be eliminated."
-                                      << std::endl;
-                            has_to_be_fixed = true;
-                            return;
-                        }
-                    }
-                }
-            }
-
-            if (VERBOSE) std::cout << "Solving problem ..." << std::endl;
-
-            standard_form_problem.solve_with_base(standard_form_problem.suggested_base);
-
-            if (VERBOSE) std::cout << "Done." << std::endl;
-
-
-            //      The solution of the standard form problem must be transposed to
-            //      the original problem.
-
-            if (VERBOSE) std::cout << "Processing standard form solution ..." << std::endl;
-
-            if (standard_form_problem.unlimited) {
-                unlimited = true;
-            } else {
-                unlimited = false;
-                solution.resize(solution_dimension, 1);
-
-                std::vector<Variable*>::const_iterator it;
-
-                size_t index = 0;
-                for (it = standard_form_problem.variables.begin();
-                     it != standard_form_problem.variables.end(); it++, index++) {
-                    (*it)->process(standard_form_problem.solution, solution, index);
-                }
-
-                solution_value     = standard_form_problem.solution_value;
-                constraints_vector = standard_form_problem.constraints_vector;
-                changed_sign       = standard_form_problem.changed_sign;
-            }
-
-            if (VERBOSE) std::cout << "Done." << std::endl;
+    size_t Simplex::is_optimal(Mtrx const& tableau) {
+        size_t fixed_column = tableau.cols() - 1;
+        size_t aux          = tableau.rows();
+        size_t min_idx      = 1;
+        for (size_t i = 2; i < aux; i++) {
+            min_idx = (tableau(i, fixed_column) < tableau(min_idx, fixed_column)) ? i : min_idx;
         }
-    */
+        if (tableau(min_idx, fixed_column) < 0.0) {
+            return min_idx;
+        } else {
+            optimal = true;
+            return 0;
+        }
+    }
+
+    size_t Simplex::min_ratio(Mtrx const& tableau, size_t index) {
+        feasible       = false;
+        size_t aux     = tableau.cols() - 1;
+        size_t min_idx = 0;
+        for (size_t i = 0; i < aux; i++) {
+            if (tableau(index, i) < 0) {
+                if (!feasible) {
+                    min_idx  = i;
+                    feasible = true;
+                } else {
+                    min_idx = (tableau(0, i) / tableau(index, i) <
+                               tableau(0, min_idx) / tableau(index, min_idx))
+                                  ? i
+                                  : min_idx;
+                }
+            }
+        }
+        return min_idx;
+    }
+
+    void Simplex::dual_simplex() {
+        Mtrx tableau(constraints.size() + 1, solution_dimension + 1);
+
+        // Funcion objetivo y su valor
+        size_t n_clmns = tableau.cols();
+        for (size_t i = 0; i < n_clmns; i++) {
+            if (!(i + 1 < n_clmns)) {
+                tableau(0, i) = 0.0;
+            } else {
+                tableau(0, i) = objective_function.coefficients(i);
+            }
+        }
+        // Restricciones y sus valores
+        size_t n_rows = tableau.rows();
+        for (size_t i = 1; i < n_rows; i++) {
+            for (size_t j = 0; j < n_clmns; j++) {
+                if (!(j + 1 < n_clmns)) {
+                    tableau(i, j) = constraints[i - 1].value;
+                } else {
+                    tableau(i, j) = constraints[i - 1].coefficients(j);
+                }
+            }
+        }
+        // Creamos nuestra base inicial
+        ColumnSet base;
+        size_t    n_cnstrnts = constraints.size();
+        for (size_t i = (n_clmns - 1) - n_cnstrnts; i < (n_clmns - 1); i++) {
+            base.insert(i);
+        }
+        // Revisar si se añadio una restriccion artificial
+        if (artificial_constrait) {
+        }
+        // Empezar metodo dual simplex
+        size_t left_variable;
+        while (left_variable = is_optimal(tableau), left_variable) {
+            size_t enter_variable = min_ratio(tableau, left_variable);
+            if (feasible) {
+                Mtrx        old_tableau = tableau;
+                long double pivot       = tableau(left_variable, enter_variable);
+                // Actualizamos el renglon de la variable que sale
+                for (size_t i = 0; i < n_clmns; i++) {
+                    tableau(left_variable, i) /= pivot;
+                }
+                // Actualizamos el resto de la tabla
+                for (size_t i = 0; i < n_rows; i++) {
+                    if (i == left_variable) {
+                        continue;
+                    }
+                    for (size_t j = 0; j < n_clmns; j++) {
+                        tableau(i, j) = old_tableau(i, j) -
+                                        old_tableau(i, enter_variable) * tableau(left_variable, j);
+                    }
+                }
+            } else {
+                throw("Problema infactible");
+            }
+        }
+        std::cout << std::endl;
+        std::cout << "Ultimo tableau:\n";
+        std::cout << tableau;
+        std::cout << std::endl;
+        // Proceso los resultados obtenidos
+    }
 
 }  // namespace optimization

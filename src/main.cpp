@@ -37,6 +37,7 @@ int main(int argc, char* argv[]) {
         try {
             problem.load_problem(argv[1]);
             problem.process_to_standard_form();
+            problem.dual_simplex();
         } catch (char const* msg) {
             std::cout << "Error: " << msg << std::endl;
             return EXIT_FAILURE;

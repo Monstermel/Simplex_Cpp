@@ -29,14 +29,10 @@ namespace optimization {
         return -1;
     }
 
-    void ColumnSet::log(char const* prelude) const {
-        std::cout << prelude;
-
+    void ColumnSet::log() const {
         for (std::vector<size_t>::const_iterator it = columns.begin(); it != columns.end(); it++) {
             std::cout << *it << " ";
         }
-
-        std::cout << std::endl;
     }
 
     bool ColumnSet::contains(size_t column) const {

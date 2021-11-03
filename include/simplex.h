@@ -40,7 +40,7 @@ namespace optimization {
         void    remove(size_t column);
         void    substitute(size_t old_column, size_t new_column);
         int     index_of(size_t column) const;
-        void    log(char const* prelude) const;
+        void    log() const;
         bool    contains(size_t column) const;
         size_t& column(size_t idx);
         size_t  size() const;
@@ -79,22 +79,22 @@ namespace optimization {
         void add_constraint(Constraint const& constraint);
         void set_objective_function(ObjectiveFunction const& objective_function);
 
-        void solve();
-
-        void print_solution() const;
         void log() const;
+        void print_solution() const;
+        bool has_solution() const;
+        bool is_feasible() const;
+        bool is_bounded() const;
 
-        bool is_unlimited() const;
-        bool has_solutions() const;
-        bool must_be_fixed() const;
 
         // Funcion que transforma a la forma estandar
         void process_to_standard_form();
 
+        // El metodo implementado y funciones auxiliares
+        void dual_simplex();
+
        protected:
-        // Column sets
-        ColumnSet current_base;
-        ColumnSet current_out_of_base;
+        size_t is_optimal(Mtrx const& tableau);
+        size_t min_ratio(Mtrx const& tableau, size_t index);
 
         // Datos del problema lineal
         std::string             name;
@@ -103,28 +103,15 @@ namespace optimization {
         std::vector<Constraint> constraints;
         std::vector<Constraint> nn_constraints;
         std::vector<Variable*>  variables;
+        bool                    changed_sign;
+        bool                    artificial_constrait;
 
-        // Processed data
-        Mtrx coefficients_matrix;
-        Mtrx constraints_vector;
-        Mtrx base_inverse;
-        Mtrx column_p;
-
-        size_t old_column;
-
-        // Results
-        Mtrx        base_solution;
+        // Resultados
         Mtrx        solution;
-        Mtrx        reduced_cost;
         long double solution_value;
-
-        bool optimal;
-        bool unlimited;
-        bool overconstrained;
-        bool has_to_be_fixed;
-        bool changed_sign;
-
-        int inverse_recalculation_rate;
+        bool        optimal = false;
+        bool        feasible;
+        bool        bounded;
     };
 
 }  // namespace optimization
