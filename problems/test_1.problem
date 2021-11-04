@@ -1,0 +1,15 @@
+Informacion:
+2
+
+Variables: 
+0   x1 inf
+0   x2 inf 
+
+Restriciones:
+15 15 < 720
+45 20 < 1850
+0  1  > 10
+45 0  > 1100
+
+Objetivo:
+max 22500 28000
