@@ -7,8 +7,7 @@
 #include <string>
 #include <vector>
 
-constexpr auto TOL     = 0.00000000000000000001;
-constexpr auto VERBOSE = true;
+constexpr auto VERBOSE = false;
 
 namespace optimization {
     typedef Eigen::Matrix<long double, Eigen::Dynamic, Eigen::Dynamic> Mtrx;
@@ -38,12 +37,10 @@ namespace optimization {
        public:
         void    insert(size_t column);
         void    remove(size_t column);
-        void    substitute(size_t old_column, size_t new_column);
-        int     index_of(size_t column) const;
         void    log() const;
         bool    contains(size_t column) const;
-        size_t& column(size_t idx);
         size_t  size() const;
+        size_t& operator[](size_t idx);
 
        private:
         std::vector<size_t> columns;
@@ -103,8 +100,8 @@ namespace optimization {
         std::vector<Constraint> constraints;
         std::vector<Constraint> nn_constraints;
         std::vector<Variable*>  variables;
-        bool                    changed_sign;
-        bool                    artificial_constrait;
+        bool                    changed_sign         = false;
+        bool                    artificial_constrait = false;
 
         // Resultados
         Mtrx        solution;

@@ -6,7 +6,9 @@
 #include "simplex.h"
 
 #include <cstdlib>
+#include <ctgmath>
 #include <fstream>
+#include <limits>
 #include <regex>
 #include <sstream>
 
@@ -404,22 +406,72 @@ namespace optimization {
             // Cambiamos el signo
             objective_function.coefficients *= -1.0;
         }
+        aux = objective_function.coefficients.cols();
+        for (size_t i = 0; i < aux; i++) {
+            if (0 < objective_function.coefficients(i)) {
+                // Agregamos una restriccion artificial
+                artificial_constrait = true;
+                // Agregamos su variable de holgura
+                solution_dimension++;
+                objective_function.add_column(0);
+                std::vector<Constraint>::iterator mit;
+                for (mit = constraints.begin(); mit != constraints.end(); mit++) {
+                    mit->add_column(0);
+                }
+                for (mit = nn_constraints.begin(); mit != nn_constraints.end(); mit++) {
+                    mit->add_column(0);
+                }
+                std::stringstream variable_name;
+                variable_name << "slack_";
+                variable_name << solution_dimension - 1;
+                variables.push_back(new SlackVariable(this, variable_name.str().c_str()));
+                // Restriccion de no negatividad
+                Mtrx eye                    = Mtrx::Zero(1, solution_dimension);
+                eye(solution_dimension - 1) = 1;
+                add_constraint(Constraint(eye, NOT_NEGATIVE, 0));
+                // Restriccion x_1 + ... + x_n + s_k = M
+                size_t n_cnstrnts = constraints.size() + 1;
+                for (size_t j = 0; j < solution_dimension - n_cnstrnts; j++) {
+                    eye(j) = 1;
+                }
+                // Calculamos el valor de M
+                long double buffer;
+                long double max_value = 0.0;
+                for (size_t j = 0; j < solution_dimension; j++) {
+                    buffer    = std::abs(objective_function.coefficients(j));
+                    max_value = (max_value < buffer) ? buffer : max_value;
+                }
+                for (size_t j = 0; j < constraints.size(); j++) {
+                    for (size_t k = 0; k <= solution_dimension; k++) {
+                        if (k == solution_dimension) {
+                            buffer    = std::abs(constraints[j].value);
+                            max_value = (max_value < buffer) ? buffer : max_value;
+                        } else {
+                            buffer    = std::abs(constraints[j].coefficients(k));
+                            max_value = (max_value < buffer) ? buffer : max_value;
+                        }
+                    }
+                }
+                add_constraint(Constraint(eye, EQUAL, max_value * 100.0));
+                break;
+            }
+        }
 
         // Comprobamos que todo se haya echo correctamente
         if ((size_t) objective_function.coefficients.cols() != solution_dimension) {
-            throw("Error al transformar a la forma estandar");
+            throw("Error al transformar a la forma estandar 1");
         }
         if (variables.size() != solution_dimension) {
-            throw("Error al transformar a la forma estandar");
+            throw("Error al transformar a la forma estandar 2");
         }
         for (it = constraints.begin(); it != constraints.end(); it++) {
             if ((size_t) (it->coefficients.cols()) != solution_dimension) {
-                throw("Error al transformar a la forma estandar");
+                throw("Error al transformar a la forma estandar 3");
             }
         }
         for (it = nn_constraints.begin(); it != nn_constraints.end(); it++) {
             if ((size_t) (it->coefficients.cols()) != solution_dimension) {
-                throw("Error al transformar a la forma estandar");
+                throw("Error al transformar a la forma estandar 4");
             }
         }
 
@@ -497,17 +549,42 @@ namespace optimization {
         }
         // Revisar si se añadio una restriccion artificial
         if (artificial_constrait) {
+            size_t max_idx   = n_rows - 1;
+            size_t max_idx_z = 0;
+            for (size_t i = 2; i < n_clmns - 1; i++) {
+                max_idx_z = (tableau(0, i) > tableau(0, max_idx_z)) ? i : max_idx_z;
+            }
+            // Actualizamos la base
+            base[max_idx - 1] = max_idx_z;
+            // Hacemos una copia del tableau
+            Mtrx old_tableau = tableau;
+            // Actualizamos el renglon de la variable que sale
+            for (size_t i = 0; i < n_clmns; i++) {
+                tableau(max_idx, i) /= old_tableau(max_idx, max_idx_z);
+            }
+            // Actualizamos el resto de la tabla
+            for (size_t i = 0; i < n_rows; i++) {
+                if (i == max_idx) {
+                    continue;
+                }
+                for (size_t j = 0; j < n_clmns; j++) {
+                    tableau(i, j) =
+                        old_tableau(i, j) - old_tableau(i, max_idx_z) * tableau(max_idx, j);
+                }
+            }
         }
         // Empezar metodo dual simplex
         size_t left_variable;
         while (left_variable = is_optimal(tableau), left_variable) {
             size_t enter_variable = min_ratio(tableau, left_variable);
             if (feasible) {
-                Mtrx        old_tableau = tableau;
-                long double pivot       = tableau(left_variable, enter_variable);
+                // Actualizamos la base
+                base[left_variable - 1] = enter_variable;
+                // Hacemos una copia del tableau
+                Mtrx old_tableau = tableau;
                 // Actualizamos el renglon de la variable que sale
                 for (size_t i = 0; i < n_clmns; i++) {
-                    tableau(left_variable, i) /= pivot;
+                    tableau(left_variable, i) /= old_tableau(left_variable, enter_variable);
                 }
                 // Actualizamos el resto de la tabla
                 for (size_t i = 0; i < n_rows; i++) {
@@ -523,11 +600,33 @@ namespace optimization {
                 throw("Problema infactible");
             }
         }
-        std::cout << std::endl;
-        std::cout << "Ultimo tableau:\n";
-        std::cout << tableau;
-        std::cout << std::endl;
-        // Proceso los resultados obtenidos
+        // Guardamos los resultados obtenidos
+        if (changed_sign) {
+            solution_value = tableau(0, n_clmns - 1);
+        } else {
+            solution_value = -tableau(0, n_clmns - 1);
+        }
+        Mtrx pre_solution = Mtrx::Zero(1, solution_dimension);
+        for (size_t i = 0; i < n_cnstrnts; i++) {
+            pre_solution(base[i]) = tableau(i + 1, n_clmns - 1);
+        }
+        // Retiramos todas las variables agregadas
+        solution_dimension -= n_cnstrnts;
+        solution = Mtrx::Zero(1, solution_dimension);
+        // Procesamos todas las variables
+        std::vector<Variable*>::const_iterator it = variables.begin();
+        for (size_t idx = 0; idx < solution_dimension && it != variables.end(); it++, idx++) {
+            (*it)->process(pre_solution, solution, idx);
+        }
+    }
+
+    void Simplex::print_solution() const {
+        std::cout << "Solucion:" << std::endl;
+        std::cout << "Z  =\t" << solution_value << std::endl;
+        for (size_t i = 0; i < solution_dimension; i++) {
+            std::cout << variables[i]->name << " =\t" << solution(i) << std::endl;
+        }
+        return;
     }
 
 }  // namespace optimization
