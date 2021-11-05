@@ -5,6 +5,8 @@
 
 #include "simplex.h"
 
+#include <Python.h>
+
 #include <cstdlib>
 #include <ctgmath>
 #include <fstream>
@@ -57,13 +59,13 @@ namespace optimization {
                 buffer >> token;
 
                 if (token.length()) {
-                    if (token == "Informacion:")
+                    if (token == "Informacion")
                         current_parsing_block = DATA;
-                    else if (token == "Variables:")
+                    else if (token == "Variables")
                         current_parsing_block = VARS;
-                    else if (token == "Restriciones:")
+                    else if (token == "Restricciones")
                         current_parsing_block = CONSTRAINTS;
-                    else if (token == "Objetivo:")
+                    else if (token == "Objetivo")
                         current_parsing_block = OBJECTIVE;
                     else {
                         if (current_parsing_block == NONE) {
@@ -279,6 +281,10 @@ namespace optimization {
         if (VERBOSE) {
             std::cout << std::endl << "# Transformando a forma estandar... ";
         }
+        // Creamos una copia para graficar
+        plt_cnstrnts     = constraints;
+        plt_objctv_fnctn = objective_function;
+
         std::vector<Constraint>::iterator it;
 
         size_t initial_solution_dimension = solution_dimension;
@@ -620,11 +626,99 @@ namespace optimization {
         }
     }
 
+    void Simplex::plot() const {
+        // Variables auxiliares
+        std::stringstream buffer;
+        std::string       bffr_aux;
+        std::cout << "Graficando...";
+
+        // Creamos la configuracion inicial del script
+        std::string script(
+            "import numpy as np\n"
+            "import matplotlib.pyplot as plt\n"
+            "plt.axhline(color = 'black', linewidth = 0.93)\n"
+            "plt.axvline(color = 'black', linewidth = 0.93)\n"
+            "plt.xlabel('x')\n"
+            "plt.ylabel('y')\n");
+
+        // Configuramos el rango en el que vamos a graficar
+        buffer.str(std::string());
+        buffer << "x = np.linspace(" << solution(0) << " - 1000, " << solution(0) << " + 1000)\n";
+        buffer << "plt.xlim(" << solution(0) << " - 1000, " << solution(0) << " + 1000)\n";
+        bffr_aux = buffer.str();
+        script += bffr_aux;
+
+        // Generamos la funcion de cada restricccion
+        size_t aux = plt_cnstrnts.size();
+        for (size_t i = 0; i < aux; i++) {
+            buffer.str(std::string());
+            if (plt_cnstrnts[i].coefficients(1)) {
+                buffer << "y" << i;
+                buffer << " = ";
+                buffer << "((" << plt_cnstrnts[i].value << ")-(" << plt_cnstrnts[i].coefficients(0)
+                       << ")*x)/(" << plt_cnstrnts[i].coefficients(1) << ")\n";
+                buffer << "plt.plot(x, y" << i;
+            } else {
+                buffer << "plt.axvline(x = "
+                       << plt_cnstrnts[i].value / plt_cnstrnts[i].coefficients(0)
+                       << ", color = next(plt.gca()._get_lines.prop_cycler)['color']";
+            }
+            buffer << ", label = '" << plt_cnstrnts[i].coefficients(0) << "x" << std::showpos
+                   << plt_cnstrnts[i].coefficients(1) << std::noshowpos << "y";
+            if (plt_cnstrnts[i].type == EQUAL) {
+                buffer << "=";
+            } else if (plt_cnstrnts[i].type == LESS_EQUAL) {
+                buffer << "≤";
+            } else {
+                buffer << "≥";
+            }
+            buffer << plt_cnstrnts[i].value << "')\n";
+
+            bffr_aux = buffer.str();
+            script += bffr_aux;
+        }
+
+        // Generamos la funcion de la funcion objetivo
+        buffer.str(std::string());
+        buffer << "yz"
+               << " = "
+               << "((" << solution_value << ")-(" << plt_objctv_fnctn.coefficients(0) << ")*x)/("
+               << plt_objctv_fnctn.coefficients(1) << ")\n"
+               << "plt.plot(x, yz, label = 'Z=" << solution_value << "', color = 'black')\n";
+        bffr_aux = buffer.str();
+        script += bffr_aux;
+
+        // Graficamos el punto de la solucion
+        buffer.str(std::string());
+        buffer << "plt.plot(" << solution(0) << ", " << solution(1) << ", 'o', label = '("
+               << solution(0) << ", " << solution(1) << ")')\n";
+        bffr_aux = buffer.str();
+        script += bffr_aux;
+
+        // Mostramos el script
+        // std::cout << "\nScript:\n";
+        // std::cout << script;
+        // std::cout << "\n";
+
+        // Ejecutamos el script
+        Py_Initialize();
+        PyRun_SimpleString(script.c_str());
+        PyRun_SimpleString(
+            "plt.grid()\n"
+            "plt.legend()\n"
+            "plt.show()\n");
+        std::cout << "hecho\n";
+        Py_Finalize();
+    }
+
     void Simplex::print_solution() const {
         std::cout << "Solucion:" << std::endl;
         std::cout << "Z  =\t" << solution_value << std::endl;
         for (size_t i = 0; i < solution_dimension; i++) {
             std::cout << variables[i]->name << " =\t" << solution(i) << std::endl;
+        }
+        if (solution_dimension == 2) {
+            plot();
         }
         return;
     }

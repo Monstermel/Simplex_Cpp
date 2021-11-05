@@ -1,14 +1,14 @@
-Informacion:
+Informacion
 2
 
-Variables:
+Variables
 0 x1 inf
 0 x2 inf
 
-Restriciones:
-1  2 < 53
-10 8 < 45
-11 9 < 4
+Restricciones
+1  2 < 120
+1  1 > 60
+1 -2 > 0
 
-Objetivo:
-max 5 3
+Objetivo
+max 5 10

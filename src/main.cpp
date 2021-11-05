@@ -1,35 +1,8 @@
-#include <Python.h>
-
 #include <iostream>
 
 #include "simplex.h"
 
 using namespace optimization;
-
-void plot(void) {
-    Py_Initialize();
-    PyRun_SimpleString("import numpy as np");
-    PyRun_SimpleString("import matplotlib.pyplot as plt");
-    PyRun_SimpleString("x = np.linspace(0, 15, 2000)");
-    PyRun_SimpleString(
-        "y1 = 0 * x + 2\n"
-        "y2 = (25-x)/2.0\n"
-        "y3 = (2*x-8)/4.0\n"
-        "y4 = 2 * x -5\n"
-        "yz = (73.75 - 4*x)/3");
-    PyRun_SimpleString(
-        "plt.plot(x, y1)\n"
-        "plt.plot(x, y2)\n"
-        "plt.plot(x, y3)\n"
-        "plt.plot(x, y4)\n"
-        "plt.plot(x, yz)\n"
-        "y5 = np.minimum(y2, y4)\n"
-        "y6 = np.maximum(y1, y3)\n"
-        "plt.fill_between(x, y5, y6, where=y5>y6, color='grey', alpha=0.5)");
-    PyRun_SimpleString("plt.show()");
-    Py_Finalize();
-    return;
-}
 
 int main(int argc, char* argv[]) {
     if (argc == 2) {

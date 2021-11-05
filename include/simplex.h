@@ -78,6 +78,7 @@ namespace optimization {
 
         void log() const;
         void print_solution() const;
+        void plot() const;
         bool has_solution() const;
         bool is_feasible() const;
         bool is_bounded() const;
@@ -97,8 +98,10 @@ namespace optimization {
         std::string             name;
         size_t                  solution_dimension;
         ObjectiveFunction       objective_function;
+        ObjectiveFunction       plt_objctv_fnctn;
         std::vector<Constraint> constraints;
         std::vector<Constraint> nn_constraints;
+        std::vector<Constraint> plt_cnstrnts;
         std::vector<Variable*>  variables;
         bool                    changed_sign         = false;
         bool                    artificial_constrait = false;
