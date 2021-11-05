@@ -79,10 +79,6 @@ namespace optimization {
         void log() const;
         void print_solution() const;
         void plot() const;
-        bool has_solution() const;
-        bool is_feasible() const;
-        bool is_bounded() const;
-
 
         // Funcion que transforma a la forma estandar
         void process_to_standard_form();
@@ -109,9 +105,7 @@ namespace optimization {
         // Resultados
         Mtrx        solution;
         long double solution_value;
-        bool        optimal = false;
         bool        feasible;
-        bool        bounded;
     };
 
 }  // namespace optimization

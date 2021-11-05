@@ -1,7 +1,7 @@
-Informacion:
+Informacion
 6
 
-Variables: 
+Variables
 0   x1 inf
 0   x2 inf 
 0   x3 inf 
@@ -9,7 +9,7 @@ Variables:
 0   x5 inf 
 0   x6 inf 
 
-Restriciones:
+Restricciones
  39     24     35     38	 33    -1 > 10000
 -0.0064 0.0167 0.0243 0.0316 0.0591 0 < 0
  1      0      0      0      0      0 > 100
@@ -19,7 +19,7 @@ Restriciones:
  0      0      0      1      0      0 > 20
  0      0      0      0      1      0 > 5
 
-Objetivo:
+Objetivo
 min 3.8	7 4	2.6	1.5	-0.12
 
 

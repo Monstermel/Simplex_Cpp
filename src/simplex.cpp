@@ -18,8 +18,6 @@
 #include "variable.h"
 
 namespace optimization {
-
-
     Simplex::Simplex(char const* _name) : name(_name), solution_dimension(0), changed_sign(false) {}
 
     Simplex::~Simplex() {
@@ -32,12 +30,6 @@ namespace optimization {
     }
 
     void Simplex::add_variable(Variable* variable) { variables.push_back(variable); }
-
-    bool Simplex::has_solution() const { return optimal; }
-
-    bool Simplex::is_feasible() const { return feasible; }
-
-    bool Simplex::is_bounded() const { return bounded; }
 
     void Simplex::load_problem(char const* problem_name) {
         std::ifstream file(problem_name);
@@ -499,7 +491,6 @@ namespace optimization {
         if (tableau(min_idx, fixed_column) < 0.0) {
             return min_idx;
         } else {
-            optimal = true;
             return 0;
         }
     }
@@ -547,6 +538,9 @@ namespace optimization {
                 }
             }
         }
+        // Hacemos una copia para evaluar el problema dual
+        Mtrx dual_aux = tableau;
+
         // Creamos nuestra base inicial
         ColumnSet base;
         size_t    n_cnstrnts = constraints.size();
@@ -557,7 +551,7 @@ namespace optimization {
         if (artificial_constrait) {
             size_t max_idx   = n_rows - 1;
             size_t max_idx_z = 0;
-            for (size_t i = 2; i < n_clmns - 1; i++) {
+            for (size_t i = 1; i < n_clmns - 1; i++) {
                 max_idx_z = (tableau(0, i) > tableau(0, max_idx_z)) ? i : max_idx_z;
             }
             // Actualizamos la base
@@ -579,6 +573,7 @@ namespace optimization {
                 }
             }
         }
+
         // Empezar metodo dual simplex
         size_t left_variable;
         while (left_variable = is_optimal(tableau), left_variable) {
@@ -606,6 +601,113 @@ namespace optimization {
                 throw("Problema infactible");
             }
         }
+
+        // El problema es factible o no acotado asi que ahora evaluamos el dual
+        size_t n_nbscs   = solution_dimension - n_cnstrnts;
+        size_t d_n_rows  = n_nbscs + 1;
+        size_t d_n_clmns = (artificial_constrait) ? n_cnstrnts + n_nbscs : n_cnstrnts + n_nbscs + 1;
+        Mtrx   dual_tableau = Mtrx::Zero(d_n_rows, d_n_clmns);
+        for (size_t i = 1; i < n_rows; i++) {
+            if (artificial_constrait && !(i + 1 < n_rows)) {
+                break;
+            }
+            dual_tableau(0, i - 1) = -dual_aux(i, n_clmns - 1);
+        }
+        for (size_t i = 0; i < n_nbscs; i++) {
+            dual_tableau(i + 1, dual_tableau.cols() - 1) = -dual_aux(0, i);
+        }
+        for (size_t i = 1; i < n_rows; i++) {
+            if (artificial_constrait && !(i + 1 < n_rows)) {
+                break;
+            }
+            for (size_t j = 0; j < n_nbscs; j++) {
+                dual_tableau(j + 1, i - 1) = -dual_aux(i, j);
+            }
+        }
+        size_t aux_offset = (artificial_constrait) ? n_cnstrnts - 1 : n_cnstrnts;
+        for (size_t i = 1; i < d_n_rows; i++) {
+            dual_tableau(i, i + aux_offset - 1) = 1;
+        }
+
+        // Revisamos si necesita restriccion artificial
+        long double max_value = dual_tableau(0, 0);
+        for (size_t i = 0; i < d_n_clmns - d_n_rows; i++) {
+            max_value = (max_value < dual_tableau(0, i)) ? dual_tableau(0, i) : max_value;
+        }
+
+        if (0.0 < max_value) {
+            // Obtenemos el mayor valor en la tabla
+            max_value = dual_tableau(0, 0);
+            for (size_t i = 0; i < d_n_rows; i++) {
+                for (size_t j = 0; j < d_n_clmns; j++) {
+                    max_value = (max_value < dual_tableau(i, j)) ? dual_tableau(i, j) : max_value;
+                }
+            }
+
+            // Agregamos la nueva restriccion
+            Mtrx new_mtrx = Mtrx::Zero(d_n_rows + 1, d_n_clmns + 1);
+            new_mtrx.topLeftCorner(d_n_rows, d_n_clmns - 1) =
+                dual_tableau.topLeftCorner(d_n_rows, d_n_clmns - 1);
+            new_mtrx.topRightCorner(d_n_rows, 1)  = dual_tableau.topRightCorner(d_n_rows, 1);
+            d_n_rows                              = new_mtrx.rows();
+            d_n_clmns                             = new_mtrx.cols();
+            new_mtrx(d_n_rows - 1, d_n_clmns - 1) = max_value * 100;
+            new_mtrx(d_n_rows - 1, d_n_clmns - 2) = 1;
+            for (size_t i = 0; i < d_n_clmns - d_n_rows; i++) {
+                new_mtrx(d_n_rows - 1, i) = 1;
+            }
+            dual_tableau = new_mtrx;
+
+            // Forzamos la salida de la restriccion artificial
+            size_t max_idx   = d_n_rows - 1;
+            size_t max_idx_z = 0;
+            for (size_t i = 1; i < d_n_clmns - 1; i++) {
+                max_idx_z = (dual_tableau(0, i) > dual_tableau(0, max_idx_z)) ? i : max_idx_z;
+            }
+
+            // Hacemos una copia del tableau
+            Mtrx old_tableau = dual_tableau;
+            // Actualizamos el renglon de la variable que sale
+            for (size_t i = 0; i < d_n_clmns; i++) {
+                dual_tableau(max_idx, i) /= old_tableau(max_idx, max_idx_z);
+            }
+            // Actualizamos el resto de la tabla
+            for (size_t i = 0; i < d_n_rows; i++) {
+                if (i == max_idx) {
+                    continue;
+                }
+                for (size_t j = 0; j < d_n_clmns; j++) {
+                    dual_tableau(i, j) =
+                        old_tableau(i, j) - old_tableau(i, max_idx_z) * dual_tableau(max_idx, j);
+                }
+            }
+        }
+
+        // Repetimos el metodo dual simplex
+        while (left_variable = is_optimal(dual_tableau), left_variable) {
+            size_t enter_variable = min_ratio(dual_tableau, left_variable);
+            if (feasible) {
+                // Hacemos una copia del tableau
+                Mtrx old_tableau = dual_tableau;
+                // Actualizamos el renglon de la variable que sale
+                for (size_t i = 0; i < d_n_clmns; i++) {
+                    dual_tableau(left_variable, i) /= old_tableau(left_variable, enter_variable);
+                }
+                // Actualizamos el resto de la tabla
+                for (size_t i = 0; i < d_n_rows; i++) {
+                    if (i == left_variable) {
+                        continue;
+                    }
+                    for (size_t j = 0; j < d_n_clmns; j++) {
+                        dual_tableau(i, j) = old_tableau(i, j) - old_tableau(i, enter_variable) *
+                                                                     dual_tableau(left_variable, j);
+                    }
+                }
+            } else {
+                throw("Problema no acotado");
+            }
+        }
+
         // Guardamos los resultados obtenidos
         if (changed_sign) {
             solution_value = tableau(0, n_clmns - 1);
@@ -643,8 +745,8 @@ namespace optimization {
 
         // Configuramos el rango en el que vamos a graficar
         buffer.str(std::string());
-        buffer << "x = np.linspace(" << solution(0) << " - 1000, " << solution(0) << " + 1000)\n";
-        buffer << "plt.xlim(" << solution(0) << " - 1000, " << solution(0) << " + 1000)\n";
+        buffer << "x = np.linspace(" << solution(0) << " - 100, " << solution(0) << " + 100)\n";
+        buffer << "plt.xlim(" << solution(0) << " - 100, " << solution(0) << " + 100)\n";
         bffr_aux = buffer.str();
         script += bffr_aux;
 
