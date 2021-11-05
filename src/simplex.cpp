@@ -745,8 +745,8 @@ namespace optimization {
 
         // Configuramos el rango en el que vamos a graficar
         buffer.str(std::string());
-        buffer << "x = np.linspace(" << solution(0) << " - 100, " << solution(0) << " + 100)\n";
-        buffer << "plt.xlim(" << solution(0) << " - 100, " << solution(0) << " + 100)\n";
+        buffer << "x = np.linspace(" << solution(0) << " - 1000, " << solution(0) << " + 1000)\n";
+        buffer << "plt.xlim(" << solution(0) << " - 1000, " << solution(0) << " + 1000)\n";
         bffr_aux = buffer.str();
         script += bffr_aux;
 
@@ -796,11 +796,6 @@ namespace optimization {
                << solution(0) << ", " << solution(1) << ")')\n";
         bffr_aux = buffer.str();
         script += bffr_aux;
-
-        // Mostramos el script
-        // std::cout << "\nScript:\n";
-        // std::cout << script;
-        // std::cout << "\n";
 
         // Ejecutamos el script
         Py_Initialize();
