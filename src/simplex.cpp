@@ -11,16 +11,15 @@
 #include <ctgmath>
 #include <fstream>
 #include <limits>
-#include <regex>
 #include <sstream>
 
 #include "sys/stat.h"
 #include "variable.h"
 
 namespace optimization {
-    Simplex::Simplex(char const* _name) : name(_name), solution_dimension(0), changed_sign(false) {}
+    LinealProblem::LinealProblem(char const* _name) : name(_name), solution_dimension(0), changed_sign(false) {}
 
-    Simplex::~Simplex() {
+    LinealProblem::~LinealProblem() {
         std::vector<Variable*>::iterator it;
         for (it = variables.begin(); it != variables.end(); it++) {
             if ((*it)->creator == this) {
@@ -29,9 +28,9 @@ namespace optimization {
         }
     }
 
-    void Simplex::add_variable(Variable* variable) { variables.push_back(variable); }
+    void LinealProblem::add_variable(Variable* variable) { variables.push_back(variable); }
 
-    void Simplex::load_problem(char const* problem_name) {
+    void LinealProblem::load_problem(char const* problem_name) {
         std::ifstream file(problem_name);
 
         if (file.is_open()) {
@@ -228,7 +227,7 @@ namespace optimization {
         return;
     }
 
-    void Simplex::add_constraint(Constraint const& constraint) {
+    void LinealProblem::add_constraint(Constraint const& constraint) {
         if (solution_dimension != (size_t) constraint.coefficients.cols()) {
             throw("Error en el numero de las restricciones");
         }
@@ -240,7 +239,7 @@ namespace optimization {
         }
     }
 
-    void Simplex::set_objective_function(ObjectiveFunction const& objctv_fnctn) {
+    void LinealProblem::set_objective_function(ObjectiveFunction const& objctv_fnctn) {
         if (solution_dimension != (size_t) objctv_fnctn.coefficients.cols()) {
             throw("Error en el tamaño de la funcion objetivo");
         }
@@ -248,7 +247,7 @@ namespace optimization {
         objective_function = objctv_fnctn;
     }
 
-    void Simplex::log() const {
+    void LinealProblem::log() const {
         std::cout << name << std::endl;
         std::cout << std::endl;
 
@@ -269,7 +268,7 @@ namespace optimization {
         }
     }
 
-    void Simplex::process_to_standard_form() {
+    void LinealProblem::process_to_standard_form() {
         if (VERBOSE) {
             std::cout << std::endl << "# Transformando a forma estandar... ";
         }
@@ -482,7 +481,7 @@ namespace optimization {
         }
     }
 
-    size_t Simplex::is_optimal(Mtrx const& tableau) {
+    size_t LinealProblem::is_optimal(Mtrx const& tableau) {
         size_t fixed_column = tableau.cols() - 1;
         size_t aux          = tableau.rows();
         size_t min_idx      = 1;
@@ -496,7 +495,7 @@ namespace optimization {
         }
     }
 
-    size_t Simplex::min_ratio(Mtrx const& tableau, size_t index) {
+    size_t LinealProblem::min_ratio(Mtrx const& tableau, size_t index) {
         feasible       = false;
         size_t aux     = tableau.cols() - 1;
         size_t min_idx = 0;
@@ -516,7 +515,7 @@ namespace optimization {
         return min_idx;
     }
 
-    void Simplex::dual_simplex() {
+    void LinealProblem::dual_simplex() {
         Mtrx tableau(constraints.size() + 1, solution_dimension + 1);
 
         // Funcion objetivo y su valor
@@ -733,7 +732,7 @@ namespace optimization {
         }
     }
 
-    void Simplex::plot() const {
+    void LinealProblem::plot() const {
         // Variables auxiliares
         std::stringstream buffer;
         std::string       bffr_aux;
@@ -813,7 +812,7 @@ namespace optimization {
         Py_Finalize();
     }
 
-    void Simplex::print_solution() const {
+    void LinealProblem::print_solution() const {
         std::cout << "Solucion:" << std::endl;
         std::cout << "Z  =\t" << solution_value << std::endl;
         for (size_t i = 0; i < solution_dimension; i++) {

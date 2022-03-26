@@ -17,7 +17,7 @@ namespace optimization {
 
     class Variable;
     class Constraint {
-        friend class Simplex;
+        friend class LinealProblem;
 
        public:
         Constraint(Mtrx const& cffcnts, Constraint_T _type, long double _value);
@@ -28,11 +28,11 @@ namespace optimization {
 
        private:
         Mtrx         coefficients;
-        Constraint_T type;
+        Constraint_T type; 
         long double  value;
     };
     class ColumnSet {
-        friend class Simplex;
+        friend class LinealProblem;
 
        public:
         void    insert(size_t column);
@@ -46,7 +46,7 @@ namespace optimization {
         std::vector<size_t> columns;
     };
     class ObjectiveFunction {
-        friend class Simplex;
+        friend class LinealProblem;
 
        public:
         ObjectiveFunction();
@@ -66,10 +66,10 @@ namespace optimization {
         ObjectiveFunction_T type;
         Mtrx                coefficients;
     };
-    class Simplex {
+    class LinealProblem {
        public:
-        Simplex(char const* _name);
-        ~Simplex();
+        LinealProblem(char const* _name);
+        ~LinealProblem();
 
         void load_problem(char const* problem_name);
         void add_variable(Variable* var);

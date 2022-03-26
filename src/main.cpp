@@ -6,7 +6,7 @@ using namespace optimization;
 
 int main(int argc, char* argv[]) {
     if (argc == 2) {
-        Simplex problem("Simplex");
+        LinealProblem problem("Simplex");
         try {
             problem.load_problem(argv[1]);
             problem.process_to_standard_form();
