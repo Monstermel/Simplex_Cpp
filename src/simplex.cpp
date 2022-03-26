@@ -313,7 +313,8 @@ namespace optimization {
                 n_eye(solution_dimension - 1) = 1;
                 add_constraint(Constraint(n_eye, NOT_NEGATIVE, 0));
 
-                // Actualizamos las restricciones normales con la nueva variable x_i''
+                // Actualizamos las restricciones normales con la nueva variable
+                // x_i''
                 for (mit = constraints.begin(); mit != constraints.end(); mit++) {
                     mit->add_column(-(mit->coefficients(i)));
                 }
@@ -573,10 +574,14 @@ namespace optimization {
                 }
             }
         }
-
+        std::cout << "\nInicio del metodo:";
         // Empezar metodo dual simplex
+        size_t intrtn = 0;
         size_t left_variable;
-        while (left_variable = is_optimal(tableau), left_variable) {
+        while (std::cout << std::endl
+                         << "Tableau " << intrtn << ":\n"
+                         << tableau << std::endl,
+               intrtn++, left_variable = is_optimal(tableau), left_variable) {
             size_t enter_variable = min_ratio(tableau, left_variable);
             if (feasible) {
                 // Actualizamos la base
