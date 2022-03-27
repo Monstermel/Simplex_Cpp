@@ -51,7 +51,7 @@ namespace optimization {
                 buffer >> token;
 
                 if (token.length()) {
-                    if (token == "Informacion")
+                    if (token == "Nombre")
                         current_parsing_block = DATA;
                     else if (token == "Variables")
                         current_parsing_block = VARS;
@@ -64,13 +64,17 @@ namespace optimization {
                             throw("Indentificador de bloque invalido");
                         }
                         switch (current_parsing_block) {
-                            case DATA: {
-                                try {
-                                    solution_dimension = std::stoul(token);
-                                } catch (...) {
-                                    throw("Numero de variables invalido");
+                            case DATA:
+                                // Me quede aqui 26/03/2022
+                                parse_data();
+                                {
+                                    try {
+                                        solution_dimension = std::stoul(token);
+                                    } catch (...) {
+                                        throw("Numero de variables invalido");
+                                    }
                                 }
-                            } break;
+                                break;
 
                             case VARS: {
                                 // No podemos llegar aqui si DATA

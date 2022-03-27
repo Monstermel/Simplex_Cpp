@@ -72,6 +72,10 @@ namespace optimization {
         LinearProblem(char const* _name);
 
         void add_variable(Variable* var);
+        void parse_data();
+        void parse_vars();
+        void parse_objective();
+        void parse_constraits();
         void load_problem(char const* problem_name);
         void add_constraint(Constraint const& constraint);
         void set_objective_function(ObjectiveFunction const& objective_function);
