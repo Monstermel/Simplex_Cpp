@@ -8,23 +8,23 @@ namespace optimization {
     class AuxiliaryVariable;
 
     class Variable {
-        friend class LinealProblem;
+        friend class LinearProblem;
 
        public:
-        Variable(LinealProblem* crtr, char const* _name);
+        Variable(LinearProblem* crtr, char const* _name);
         virtual ~Variable();
         virtual void process(Mtrx& calculated_solution, Mtrx& solution, size_t _idx);
 
        protected:
-        LinealProblem*    creator;
+        LinearProblem*    creator;
         std::string name;
     };
 
     class SplittedVariable : public Variable {
-        friend class LinealProblem;
+        friend class LinearProblem;
 
        public:
-        SplittedVariable(LinealProblem* crtr, char const* _name, AuxiliaryVariable* _aux);
+        SplittedVariable(LinearProblem* crtr, char const* _name, AuxiliaryVariable* _aux);
         ~SplittedVariable();
         void process(Mtrx& calculated_solution, Mtrx& solution, size_t _idx);
 
@@ -33,20 +33,20 @@ namespace optimization {
     };
 
     class SlackVariable : public Variable {
-        friend class LinealProblem;
+        friend class LinearProblem;
 
        public:
-        SlackVariable(LinealProblem* crtr, char const* _name);
+        SlackVariable(LinearProblem* crtr, char const* _name);
         ~SlackVariable();
         void process(Mtrx& calculated_solution, Mtrx& solution, size_t _idx);
     };
 
     class AuxiliaryVariable : public Variable {
-        friend class LinealProblem;
+        friend class LinearProblem;
         friend class SplittedVariable;
 
        public:
-        AuxiliaryVariable(LinealProblem* crtr, char const* _name, size_t _idx);
+        AuxiliaryVariable(LinearProblem* crtr, char const* _name, size_t _idx);
         ~AuxiliaryVariable();
         void process(Mtrx& calculated_solution, Mtrx& solution, size_t _idx);
 

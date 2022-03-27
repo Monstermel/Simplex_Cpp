@@ -17,7 +17,7 @@ namespace optimization {
 
     class Variable;
     class Constraint {
-        friend class LinealProblem;
+        friend class LinearProblem;
 
        public:
         Constraint(Mtrx const& cffcnts, Constraint_T _type, long double _value);
@@ -28,11 +28,11 @@ namespace optimization {
 
        private:
         Mtrx         coefficients;
-        Constraint_T type; 
+        Constraint_T type;
         long double  value;
     };
     class ColumnSet {
-        friend class LinealProblem;
+        friend class LinearProblem;
 
        public:
         void    insert(size_t column);
@@ -46,7 +46,7 @@ namespace optimization {
         std::vector<size_t> columns;
     };
     class ObjectiveFunction {
-        friend class LinealProblem;
+        friend class LinearProblem;
 
        public:
         ObjectiveFunction();
@@ -66,29 +66,28 @@ namespace optimization {
         ObjectiveFunction_T type;
         Mtrx                coefficients;
     };
-    class LinealProblem {
+    class LinearProblem {
        public:
-        LinealProblem(char const* _name);
-        ~LinealProblem();
+        ~LinearProblem();
+        LinearProblem(char const* _name);
 
-        void load_problem(char const* problem_name);
         void add_variable(Variable* var);
+        void load_problem(char const* problem_name);
         void add_constraint(Constraint const& constraint);
         void set_objective_function(ObjectiveFunction const& objective_function);
 
         void log() const;
-        void print_solution() const;
         void plot() const;
+        void print_solution() const;
 
-        // Funcion que transforma a la forma estandar
-        void process_to_standard_form();
-
-        // El metodo implementado y funciones auxiliares
+        void solve();
         void dual_simplex();
+        void branch_and_bound();
+        void process_to_standard_form();  // Checar esta funcion
 
        protected:
-        size_t is_optimal(Mtrx const& tableau);
-        size_t min_ratio(Mtrx const& tableau, size_t index);
+        size_t is_optimal(Mtrx const& tableau);               // Checar esta funcion
+        size_t min_ratio(Mtrx const& tableau, size_t index);  // Tambien revisar esta
 
         // Datos del problema lineal
         std::string             name;
@@ -96,16 +95,17 @@ namespace optimization {
         ObjectiveFunction       objective_function;
         ObjectiveFunction       plt_objctv_fnctn;
         std::vector<Constraint> constraints;
-        std::vector<Constraint> nn_constraints;
+        std::vector<Constraint> no_negative_constraints;
         std::vector<Constraint> plt_cnstrnts;
         std::vector<Variable*>  variables;
         bool                    changed_sign         = false;
         bool                    artificial_constrait = false;
+        bool                    integer_problem      = false;
 
         // Resultados
         Mtrx        solution;
-        long double solution_value;
         bool        feasible;
+        long double solution_value;
     };
 
 }  // namespace optimization
