@@ -51,7 +51,7 @@ namespace optimization {
                 buffer >> token;
 
                 if (token.length()) {
-                    if (token == "Nombre")
+                    if (token == "Dimension")
                         current_parsing_block = DATA;
                     else if (token == "Variables")
                         current_parsing_block = VARS;
@@ -64,17 +64,13 @@ namespace optimization {
                             throw("Indentificador de bloque invalido");
                         }
                         switch (current_parsing_block) {
-                            case DATA:
-                                // Me quede aqui 26/03/2022
-                                parse_data();
-                                {
-                                    try {
-                                        solution_dimension = std::stoul(token);
-                                    } catch (...) {
-                                        throw("Numero de variables invalido");
-                                    }
+                            case DATA: {
+                                try {
+                                    solution_dimension = std::stoul(token);
+                                } catch (...) {
+                                    throw("Definicion inconsistente de dimension");
                                 }
-                                break;
+                            } break;
 
                             case VARS: {
                                 // No podemos llegar aqui si DATA
@@ -87,19 +83,41 @@ namespace optimization {
 
                                 aux(current_var) = 1;
 
-                                std::string lower_bound;
-                                lower_bound = token;
+                                std::string var_type;
+                                var_type = token;
                                 std::string variable_name;
                                 buffer >> variable_name;
-                                std::string upper_bound;
-                                buffer >> upper_bound;
 
-                                if (upper_bound.empty() || variable_name.empty() ||
-                                    lower_bound.empty()) {
+                                std::string lower_bound;
+                                std::string upper_bound;
+                                if (var_type != "bool") {
+                                    buffer >> lower_bound;
+                                    buffer >> upper_bound;
+                                }
+
+                                if ((upper_bound.empty() && var_type != "bool") ||
+                                    (lower_bound.empty() && var_type != "bool") ||
+                                    variable_name.empty() || var_type.empty()) {
                                     throw("Definicion de variables invalida");
                                 }
 
-                                if (lower_bound != "inf") {
+                                if (var_type == "bool") {
+                                    binary_problem = true;
+                                    add_constraint(Constraint(aux, BINARY, 0.0));
+                                }
+
+                                if (var_type == "int") {
+                                    if (lower_bound == "0" && upper_bound == "1") {
+                                        binary_problem = true;
+                                        add_constraint(Constraint(aux, BINARY, 0.0));
+                                        var_type = "bool";
+                                    } else {
+                                        integer_problem = true;
+                                        add_constraint(Constraint(aux, INTEGER, 0.0));
+                                    }
+                                }
+
+                                if (var_type != "bool" && lower_bound != "inf") {
                                     long double aux_1;
                                     try {
                                         aux_1 = std::stold(lower_bound);
@@ -112,7 +130,7 @@ namespace optimization {
                                         add_constraint(Constraint(aux, GREATER_EQUAL, aux_1));
                                     }
                                 }
-                                if (upper_bound != "inf") {
+                                if (var_type != "bool" && upper_bound != "inf") {
                                     long double aux_1;
                                     try {
                                         aux_1 = std::stold(upper_bound);
@@ -154,25 +172,25 @@ namespace optimization {
                                     }
                                 }
 
-                                std::string ct;
-                                buffer >> ct;
-                                std::string aux;
-                                buffer >> aux;
-                                if (aux.empty() || ct.empty()) {
+                                std::string cnstrnt_type;
+                                buffer >> cnstrnt_type;
+                                std::string cnstrnt_value;
+                                buffer >> cnstrnt_value;
+                                if (cnstrnt_value.empty() || cnstrnt_type.empty()) {
                                     throw("Definicion de restricciones invalida");
                                 }
                                 long double bound;
                                 try {
-                                    bound = std::stold(aux);
+                                    bound = std::stold(cnstrnt_value);
                                 } catch (...) {
                                     throw("Definicion de restricciones invalida");
                                 }
 
-                                if (ct == ">")
+                                if (cnstrnt_type == ">")
                                     add_constraint(Constraint(coefficients, GREATER_EQUAL, bound));
-                                else if (ct == "<")
+                                else if (cnstrnt_type == "<")
                                     add_constraint(Constraint(coefficients, LESS_EQUAL, bound));
-                                else if (ct == "=")
+                                else if (cnstrnt_type == "=")
                                     add_constraint(Constraint(coefficients, EQUAL, bound));
                                 else {
                                     throw("Definicion de restricciones invalida");
@@ -239,6 +257,10 @@ namespace optimization {
 
         if (constraint.type == NOT_NEGATIVE) {
             no_negative_constraints.push_back(constraint);
+        } else if (constraint.type == INTEGER) {
+            integer_constraints.push_back(constraint);
+        } else if (constraint.type == BINARY) {
+            binary_constraints.push_back(constraint);
         } else {
             constraints.push_back(constraint);
         }
@@ -261,22 +283,43 @@ namespace optimization {
         std::cout << std::endl;
 
         std::vector<Constraint>::const_iterator it;
-        std::cout << "Restricciones: " << constraints.size() << std::endl;
-        for (it = constraints.begin(); it != constraints.end(); it++) {
-            it->log();
+        if (constraints.size()) {
+            std::cout << "Restricciones: " << constraints.size() << std::endl;
+            for (it = constraints.begin(); it != constraints.end(); it++) {
+                it->log();
+            }
+            std::cout << std::endl;
         }
-        std::cout << std::endl;
 
-        std::cout << "Restriciones de no negatividad: " << no_negative_constraints.size()
-                  << std::endl;
-        for (it = no_negative_constraints.begin(); it != no_negative_constraints.end(); it++) {
-            it->log();
+        if (no_negative_constraints.size()) {
+            std::cout << "Restriciones de no negatividad: " << no_negative_constraints.size()
+                      << std::endl;
+            for (it = no_negative_constraints.begin(); it != no_negative_constraints.end(); it++) {
+                it->log();
+            }
+            std::cout << std::endl;
+        }
+
+        if (integer_constraints.size()) {
+            std::cout << "Variables enteras: " << integer_constraints.size() << std::endl;
+            for (it = integer_constraints.begin(); it != integer_constraints.end(); it++) {
+                it->log();
+            }
+            std::cout << std::endl;
+        }
+
+        if (binary_constraints.size()) {
+            std::cout << "Variables binarias: " << binary_constraints.size() << std::endl;
+            for (it = binary_constraints.begin(); it != binary_constraints.end(); it++) {
+                it->log();
+            }
+            std::cout << std::endl;
         }
     }
 
     void LinearProblem::process_to_standard_form() {
         if (VERBOSE) {
-            std::cout << std::endl << "# Transformando a forma estandar... ";
+            std::cout << "# Transformando a forma estandar... ";
         }
         // Creamos una copia para graficar
         plt_cnstrnts     = constraints;
@@ -745,7 +788,7 @@ namespace optimization {
     void LinearProblem::solve() {
         process_to_standard_form();
         if (integer_problem) {
-            branch_and_bound();
+            std::cout << "Integer problem\n";
         } else {
             // Aqui me gustaria agregar tambien el metodo de las dos fases
             dual_simplex();

@@ -1,17 +1,16 @@
-Informacion
-2
+Dimension
+    2
 
 Variables
-0 x1 inf
-0 x2 inf
+    int  x1 0 1
+    bool x2
 
 Restricciones
-1 1 < 10
-1 2 < 15
-2 5 < 25
-
+    1 1 < 10
+    1 2 < 15
+    2 5 < 25
 
 Objetivo
-max 5 9
+    max 5 9
 
 

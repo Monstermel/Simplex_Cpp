@@ -11,7 +11,7 @@ constexpr auto VERBOSE = true;
 
 namespace optimization {
     typedef Eigen::Matrix<long double, Eigen::Dynamic, Eigen::Dynamic> Mtrx;
-    enum Constraint_T { LESS_EQUAL, GREATER_EQUAL, EQUAL, NOT_NEGATIVE };
+    enum Constraint_T { LESS_EQUAL, GREATER_EQUAL, EQUAL, NOT_NEGATIVE, INTEGER, BINARY };
     enum ObjectiveFunction_T { MAX, MIN };
     enum ParsingContext { NONE, DATA, VARS, CONSTRAINTS, OBJECTIVE };
 
@@ -53,13 +53,8 @@ namespace optimization {
         ObjectiveFunction(ObjectiveFunction_T _type, Mtrx const& cffcnts);
         ObjectiveFunction& operator=(ObjectiveFunction const& objective_function);
 
-        // Solution value
         Mtrx get_value(Mtrx const& x) const;
-
-        // Manipulation
         void add_column(long double value);
-
-        // Debug
         void log() const;
 
        private:
@@ -72,10 +67,6 @@ namespace optimization {
         LinearProblem(char const* _name);
 
         void add_variable(Variable* var);
-        void parse_data();
-        void parse_vars();
-        void parse_objective();
-        void parse_constraits();
         void load_problem(char const* problem_name);
         void add_constraint(Constraint const& constraint);
         void set_objective_function(ObjectiveFunction const& objective_function);
@@ -100,11 +91,14 @@ namespace optimization {
         ObjectiveFunction       plt_objctv_fnctn;
         std::vector<Constraint> constraints;
         std::vector<Constraint> no_negative_constraints;
+        std::vector<Constraint> integer_constraints;
+        std::vector<Constraint> binary_constraints;
         std::vector<Constraint> plt_cnstrnts;
         std::vector<Variable*>  variables;
         bool                    changed_sign         = false;
         bool                    artificial_constrait = false;
         bool                    integer_problem      = false;
+        bool                    binary_problem       = false;
 
         // Resultados
         Mtrx        solution;

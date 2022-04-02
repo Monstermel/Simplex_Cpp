@@ -29,7 +29,7 @@ namespace optimization {
                 break;
         }
 
-        if (type == NOT_NEGATIVE) {
+        if (type == NOT_NEGATIVE || type == INTEGER || type == BINARY) {
             std::cout << std::endl;
         } else {
             std::cout << value << std::endl;
