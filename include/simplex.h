@@ -88,6 +88,7 @@ namespace optimization {
         // Datos del problema lineal
         std::string             name;
         size_t                  solution_dimension;
+        size_t                  original_solution_dimension;
         ObjectiveFunction       objective_function;
         ObjectiveFunction       plt_objctv_fnctn;  // Copia para poder graficar
         std::vector<Constraint> constraints;

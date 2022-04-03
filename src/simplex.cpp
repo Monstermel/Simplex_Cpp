@@ -67,7 +67,8 @@ namespace optimization {
                         switch (current_parsing_block) {
                             case DATA: {
                                 try {
-                                    solution_dimension = std::stoul(token);
+                                    solution_dimension          = std::stoul(token);
+                                    original_solution_dimension = solution_dimension;
                                 } catch (...) {
                                     throw("Definicion inconsistente de dimension");
                                 }
@@ -483,7 +484,7 @@ namespace optimization {
             // Agregamos la nueva variable
             std::stringstream variable_name;
             variable_name << "slack_";
-            variable_name << solution_dimension - 1;
+            variable_name << solution_dimension - original_solution_dimension;
             variables.push_back(new SlackVariable(this, variable_name.str().c_str()));
         }
 
@@ -520,7 +521,7 @@ namespace optimization {
                 }
                 std::stringstream variable_name;
                 variable_name << "slack_";
-                variable_name << solution_dimension - 1;
+                variable_name << solution_dimension - original_solution_dimension;
                 variables.push_back(new SlackVariable(this, variable_name.str().c_str()));
                 // Restriccion de no negatividad
                 Mtrx eye                    = Mtrx::Zero(1, solution_dimension);
