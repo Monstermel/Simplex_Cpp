@@ -16,8 +16,9 @@ namespace optimization {
         virtual void process(Mtrx& calculated_solution, Mtrx& solution, size_t _idx);
 
        protected:
-        LinearProblem*    creator;
-        std::string name;
+        LinearProblem* creator;
+        std::string    name;
+        Variable_T     type;
     };
 
     class SplittedVariable : public Variable {

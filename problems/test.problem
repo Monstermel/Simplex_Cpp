@@ -2,8 +2,8 @@ Dimension
     2
 
 Variables
-    bool x1 0 10
-    bool  x2 0 10
+    bool   x1 inf inf
+    bool  x2  inf inf
 
 Restricciones
     1 1 < 10

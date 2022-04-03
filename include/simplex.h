@@ -13,6 +13,7 @@ namespace optimization {
     typedef Eigen::Matrix<long double, Eigen::Dynamic, Eigen::Dynamic> Mtrx;
     enum Constraint_T { LESS_EQUAL, GREATER_EQUAL, EQUAL, NOT_NEGATIVE, INTEGER, BINARY };
     enum ObjectiveFunction_T { MAX, MIN };
+    enum Variable_T { ORDINARY, SPLITTED, AUXILIARY, SLACK, EXCESS, ARTIFICIAL };
     enum ParsingContext { NONE, DATA, VARS, CONSTRAINTS, OBJECTIVE };
 
     class Variable;
@@ -76,7 +77,7 @@ namespace optimization {
         void print_solution() const;
 
         void solve();
-        void dual_simplex();
+        bool dual_simplex();
         void branch_and_bound();
         void process_to_standard_form();  // Checar esta funcion
 

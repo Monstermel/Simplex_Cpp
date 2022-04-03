@@ -12,6 +12,7 @@
 #include <fstream>
 #include <limits>
 #include <sstream>
+#include <stack>
 
 #include "sys/stat.h"
 #include "variable.h"
@@ -613,7 +614,8 @@ namespace optimization {
         return min_idx;
     }
 
-    void LinearProblem::dual_simplex() {
+    bool LinearProblem::dual_simplex() {
+        // Creacion del tableau
         Mtrx tableau(constraints.size() + 1, solution_dimension + 1);
 
         // Funcion objetivo y su valor
@@ -671,8 +673,9 @@ namespace optimization {
                 }
             }
         }
+
+        // Metodo dual simplex
         std::cout << "\nInicio del metodo:";
-        // Empezar metodo dual simplex
         size_t intrtn = 0;
         size_t left_variable;
         while (std::cout << std::endl
@@ -700,11 +703,12 @@ namespace optimization {
                     }
                 }
             } else {
-                throw("Problema infactible");
+                puts("Problema infactible");
+                return false;
             }
         }
 
-        // El problema es factible o no acotado asi que ahora evaluamos el dual
+        // El problema es factible o no acotado, asi que ahora evaluamos el dual
         size_t n_nbscs   = solution_dimension - n_cnstrnts;
         size_t d_n_rows  = n_nbscs + 1;
         size_t d_n_clmns = (artificial_constrait) ? n_cnstrnts + n_nbscs : n_cnstrnts + n_nbscs + 1;
@@ -806,7 +810,8 @@ namespace optimization {
                     }
                 }
             } else {
-                throw("Problema no acotado");
+                puts("Problema no acotado");
+                return false;
             }
         }
 
@@ -821,22 +826,31 @@ namespace optimization {
             pre_solution(base[i]) = tableau(i + 1, n_clmns - 1);
         }
         // Retiramos todas las variables agregadas
-        solution_dimension -= n_cnstrnts;
         solution = Mtrx::Zero(1, solution_dimension);
         // Procesamos todas las variables
         std::vector<Variable*>::const_iterator it = variables.begin();
         for (size_t idx = 0; idx < solution_dimension && it != variables.end(); it++, idx++) {
             (*it)->process(pre_solution, solution, idx);
         }
+
+        return true;
     }
+
+    void LinearProblem::branch_and_bound() {}
 
     void LinearProblem::solve() {
         process_to_standard_form();
         if (integer_problem) {
-            std::cout << "Integer problem\n";
+            if (dual_simplex()) {
+                std::cout << "Cota inicial: " << solution_value << std::endl;
+                print_solution();
+            }
         } else {
             // Aqui me gustaria agregar tambien el metodo de las dos fases
-            dual_simplex();
+            if (dual_simplex()) {
+                std::cout << "Solution_value: " << solution_value << std::endl;
+                print_solution();
+            }
         }
         return;
     }
@@ -925,7 +939,9 @@ namespace optimization {
         std::cout << "Solucion:" << std::endl;
         std::cout << "Z  =\t" << solution_value << std::endl;
         for (size_t i = 0; i < solution_dimension; i++) {
+            // if (variables[i]->type == ORDINARY || variables[i]->type == SPLITTED) {
             std::cout << variables[i]->name << " =\t" << solution(i) << std::endl;
+            // }
         }
         if (solution_dimension == 2) {
             plot();
