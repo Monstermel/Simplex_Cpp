@@ -102,19 +102,24 @@ namespace optimization {
                                 }
 
                                 if (var_type == "bool") {
-                                    binary_problem = true;
-                                    add_constraint(Constraint(aux, BINARY, 0.0));
+                                    integer_problem = true;
+                                    add_constraint(Constraint(aux, BINARY, 1.0));
+                                    add_constraint(Constraint(aux, NOT_NEGATIVE, 0.0));
                                 }
 
                                 if (var_type == "int") {
+                                    integer_problem = true;
                                     if (lower_bound == "0" && upper_bound == "1") {
-                                        binary_problem = true;
-                                        add_constraint(Constraint(aux, BINARY, 0.0));
+                                        add_constraint(Constraint(aux, BINARY, 1.0));
+                                        add_constraint(Constraint(aux, NOT_NEGATIVE, 0.0));
                                         var_type = "bool";
                                     } else {
-                                        integer_problem = true;
                                         add_constraint(Constraint(aux, INTEGER, 0.0));
                                     }
+                                }
+
+                                if (var_type == "float") {
+                                    binary_problem = false;
                                 }
 
                                 if (var_type != "bool" && lower_bound != "inf") {
@@ -322,8 +327,10 @@ namespace optimization {
             std::cout << "# Transformando a forma estandar... ";
         }
         // Creamos una copia para graficar
-        plt_cnstrnts     = constraints;
-        plt_objctv_fnctn = objective_function;
+        if (solution_dimension == 2) {
+            plt_cnstrnts     = constraints;
+            plt_objctv_fnctn = objective_function;
+        }
 
         std::vector<Constraint>::iterator it;
 
@@ -333,7 +340,6 @@ namespace optimization {
         for (size_t i = 0; i < initial_solution_dimension; i++) {
             // Revisamos cada variable x_i
             bool has_constraint = false;
-
             // Determinamos si la variable x_i tiene restriccion de no negatividad
             for (it = no_negative_constraints.begin();
                  it != no_negative_constraints.end() && !has_constraint; it++) {
@@ -357,11 +363,28 @@ namespace optimization {
                      mit++) {
                     mit->add_column(0);
                 }
+                for (mit = integer_constraints.begin(); mit != integer_constraints.end(); mit++) {
+                    mit->add_column(0);
+                }
+                for (mit = binary_constraints.begin(); mit != binary_constraints.end(); mit++) {
+                    mit->add_column(0);
+                }
 
                 // Agregamos x_i''
                 Mtrx n_eye                    = Mtrx::Zero(1, solution_dimension);
                 n_eye(solution_dimension - 1) = 1;
                 add_constraint(Constraint(n_eye, NOT_NEGATIVE, 0));
+                // Si ademas x_i es entera x_i'' tambien debe ser entera
+                has_constraint = false;
+                for (it = integer_constraints.begin();
+                     it != integer_constraints.end() && !has_constraint; it++) {
+                    if (it->coefficients(i)) {
+                        has_constraint = true;
+                    }
+                }
+                if (has_constraint) {
+                    add_constraint(Constraint(n_eye, INTEGER, 0));
+                }
 
                 // Actualizamos las restricciones normales con la nueva variable
                 // x_i''
@@ -408,8 +431,17 @@ namespace optimization {
                 constraints[i].value *= -1.0;
             }
         }
+        // if (!binary_problem) {
+        //  Si el problema no es de tipo 0-1 entonces agregamos una restriccion del tipo
+        //  x_k <= 1 donde x_k es una variable de tipo binaria
+        aux = binary_constraints.size();
+        for (size_t i = 0; i < aux; i++) {
+            Mtrx eye = binary_constraints[i].coefficients;
+            add_constraint(Constraint(eye, LESS_EQUAL, 1.0));
+        }
+        //}
         for (it = constraints.begin(); it != constraints.end(); it++) {
-            // Omitimos las restricciones ya procesadas
+            // Omitimos las restricciones ya procesadas en iteraciones anteriores
             if (it->type == EQUAL) {
                 continue;
             }
@@ -430,6 +462,13 @@ namespace optimization {
                  mit++) {
                 mit->add_column(0);
             }
+            for (mit = integer_constraints.begin(); mit != integer_constraints.end(); mit++) {
+                mit->add_column(0);
+            }
+            for (mit = binary_constraints.begin(); mit != binary_constraints.end(); mit++) {
+                mit->add_column(0);
+            }
+
 
             // Ahora en la funcion objetivo
             objective_function.add_column(0);
@@ -470,6 +509,12 @@ namespace optimization {
                 }
                 for (mit = no_negative_constraints.begin(); mit != no_negative_constraints.end();
                      mit++) {
+                    mit->add_column(0);
+                }
+                for (mit = integer_constraints.begin(); mit != integer_constraints.end(); mit++) {
+                    mit->add_column(0);
+                }
+                for (mit = binary_constraints.begin(); mit != binary_constraints.end(); mit++) {
                     mit->add_column(0);
                 }
                 std::stringstream variable_name;

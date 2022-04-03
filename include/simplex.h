@@ -88,17 +88,18 @@ namespace optimization {
         std::string             name;
         size_t                  solution_dimension;
         ObjectiveFunction       objective_function;
-        ObjectiveFunction       plt_objctv_fnctn;
+        ObjectiveFunction       plt_objctv_fnctn;  // Copia para poder graficar
         std::vector<Constraint> constraints;
         std::vector<Constraint> no_negative_constraints;
         std::vector<Constraint> integer_constraints;
         std::vector<Constraint> binary_constraints;
-        std::vector<Constraint> plt_cnstrnts;
+        std::vector<Constraint> plt_cnstrnts;  // Copia para poder graficar
         std::vector<Variable*>  variables;
         bool                    changed_sign         = false;
         bool                    artificial_constrait = false;
         bool                    integer_problem      = false;
-        bool                    binary_problem       = false;
+        bool                    binary_problem       = true;
+        // binary_problem (0-1 IP) es verdadero hasta que se demuestre lo contrario
 
         // Resultados
         Mtrx        solution;
