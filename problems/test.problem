@@ -1,27 +1,16 @@
 Dimension
-    7
+    5
 
 Variables
-    bool x1 0 inf
-    bool x2 0 inf
-    bool x3 0 inf
-    bool x4 0 inf 
-    bool x5 0 inf
-    bool x6 0 inf
-    bool x7 0 inf
-
+    int  x1 0 inf
+    int  x2 0 inf
+    int  x3 0 inf
+    int  x4 0 inf
+    int  x5 0 inf
 
 Restricciones
-    1 1 0 1 0 1 0 > 1
-    0 0 1 0 1 0 0 > 1
-    1 0 0 0 0 1 0 > 1
-    0 0 0 0 1 0 1 > 1
-    0 0 1 0 0 1 1 > 1
-    0 1 0 0 0 0 1 > 1
-    0 0 1 0 1 0 0 > 1
-    0 1 0 1 0 0 0 > 1 
-    0 0 0 1 0 0 1 > 1
-    0 0 0 0 0 1 0 = 1
-    
+    5 8 3 2 7 < 112
+    1 8 6 5 4 < 109
+
 Objetivo
-    min 15.9 35.25 37.5 42 44.85 47.25 51
+    max 400 700 600 500 400

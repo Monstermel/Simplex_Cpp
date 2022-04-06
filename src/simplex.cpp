@@ -987,6 +987,21 @@ namespace optimization {
                 LinearProblem tmp = tree.top();
                 tree.pop();
                 tmp.dual_simplex();
+                tmp.log();
+                tmp.print_solution();
+                std::cout << std::endl;
+                if (tmp.feasible) {
+                    std::cout << "\tProblema factible" << std::endl;
+                } else {
+                    std::cout << "\tProblema no factible" << std::endl;
+                }
+                if (tmp.bounded) {
+                    std::cout << "\tProblema acotado" << std::endl;
+                } else {
+                    std::cout << "\tProblema no acotado" << std::endl;
+                }
+                std::cout << "#####################################################################"
+                             "#################################################\n";
                 if (tmp.has_solution) {
                     if (bound_found) {
                         if (objective_function.type == MAX && bound > tmp.solution_value) {
@@ -1016,6 +1031,7 @@ namespace optimization {
                         }
                     }
                     if (factible_solution) {
+                        assert(solution.cols() == tmp.solution.cols());
                         if (!bound_found) {
                             solution_value = tmp.solution_value;
                             solution       = tmp.solution;

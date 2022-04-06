@@ -8,7 +8,7 @@
 #include <vector>
 
 constexpr auto VERBOSE = false;
-constexpr auto _M_     = 90.0;
+constexpr auto _M_     = 10.0;
 
 namespace optimization {
     typedef Eigen::Matrix<long double, Eigen::Dynamic, Eigen::Dynamic> Mtrx;
