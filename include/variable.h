@@ -13,7 +13,8 @@ namespace optimization {
        public:
         Variable(LinearProblem* crtr, char const* _name);
         virtual ~Variable();
-        virtual void process(Mtrx& calculated_solution, Mtrx& solution, size_t _idx);
+        virtual void      process(Mtrx& calculated_solution, Mtrx& solution, size_t _idx);
+        virtual Variable* clone();
 
        protected:
         LinearProblem* creator;
@@ -27,7 +28,9 @@ namespace optimization {
        public:
         SplittedVariable(LinearProblem* crtr, char const* _name, AuxiliaryVariable* _aux);
         ~SplittedVariable();
-        void process(Mtrx& calculated_solution, Mtrx& solution, size_t _idx);
+        void                      process(Mtrx& calculated_solution, Mtrx& solution, size_t _idx);
+        virtual SplittedVariable* clone();
+
 
        private:
         AuxiliaryVariable* aux;
@@ -39,7 +42,8 @@ namespace optimization {
        public:
         SlackVariable(LinearProblem* crtr, char const* _name);
         ~SlackVariable();
-        void process(Mtrx& calculated_solution, Mtrx& solution, size_t _idx);
+        void                   process(Mtrx& calculated_solution, Mtrx& solution, size_t _idx);
+        virtual SlackVariable* clone();
     };
 
     class AuxiliaryVariable : public Variable {
@@ -49,7 +53,8 @@ namespace optimization {
        public:
         AuxiliaryVariable(LinearProblem* crtr, char const* _name, size_t _idx);
         ~AuxiliaryVariable();
-        void process(Mtrx& calculated_solution, Mtrx& solution, size_t _idx);
+        void                       process(Mtrx& calculated_solution, Mtrx& solution, size_t _idx);
+        virtual AuxiliaryVariable* clone();
 
        private:
         size_t idx;

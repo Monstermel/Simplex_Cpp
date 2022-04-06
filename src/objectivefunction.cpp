@@ -8,6 +8,9 @@ namespace optimization {
     ObjectiveFunction::ObjectiveFunction(ObjectiveFunction_T _type, Mtrx const& cffcnts)
         : type(_type), coefficients(cffcnts) {}
 
+    ObjectiveFunction::ObjectiveFunction(const ObjectiveFunction& objective_function)
+        : type(objective_function.type), coefficients(objective_function.coefficients) {}
+
     ObjectiveFunction& ObjectiveFunction::operator=(ObjectiveFunction const& objective_function) {
         type         = objective_function.type;
         coefficients = objective_function.coefficients;

@@ -7,7 +7,8 @@
 #include <string>
 #include <vector>
 
-constexpr auto VERBOSE = true;
+constexpr auto VERBOSE = false;
+constexpr auto _M_     = 90.0;
 
 namespace optimization {
     typedef Eigen::Matrix<long double, Eigen::Dynamic, Eigen::Dynamic> Mtrx;
@@ -52,6 +53,7 @@ namespace optimization {
        public:
         ObjectiveFunction();
         ObjectiveFunction(ObjectiveFunction_T _type, Mtrx const& cffcnts);
+        ObjectiveFunction(const ObjectiveFunction& objective_function);
         ObjectiveFunction& operator=(ObjectiveFunction const& objective_function);
 
         Mtrx get_value(Mtrx const& x) const;
@@ -66,6 +68,9 @@ namespace optimization {
        public:
         ~LinearProblem();
         LinearProblem(char const* _name);
+        LinearProblem(const LinearProblem& linear_problem);
+        LinearProblem& operator=(LinearProblem const& linear_problem);
+
 
         void add_variable(Variable* var);
         void load_problem(char const* problem_name);
@@ -75,6 +80,7 @@ namespace optimization {
         void log() const;
         void plot() const;
         void print_solution() const;
+        void print_tableu_itr(Mtrx tableau, size_t itr) const;
 
         void solve();
         bool dual_simplex();
@@ -105,7 +111,9 @@ namespace optimization {
 
         // Resultados
         Mtrx        solution;
-        bool        feasible;
+        bool        feasible     = false;
+        bool        has_solution = false;
+        bool        bounded      = false;
         long double solution_value;
     };
 
