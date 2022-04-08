@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <ctgmath>
 #include <fstream>
+#include <iomanip>
 #include <limits>
 #include <map>
 #include <sstream>
@@ -28,20 +29,19 @@ namespace optimization {
           solution_dimension(linear_problem.solution_dimension),
           original_solution_dimension(linear_problem.original_solution_dimension),
           objective_function(linear_problem.objective_function),
+          aux_objective_function(linear_problem.aux_objective_function),
           plt_objctv_fnctn(linear_problem.plt_objctv_fnctn),
           constraints(linear_problem.constraints),
-          no_negative_constraints(linear_problem.no_negative_constraints),
-          integer_constraints(linear_problem.integer_constraints),
-          binary_constraints(linear_problem.binary_constraints),
           plt_cnstrnts(linear_problem.plt_cnstrnts),
+          binary_constraints(linear_problem.binary_constraints),
+          integer_constraints(linear_problem.integer_constraints),
+          no_negative_constraints(linear_problem.no_negative_constraints),
           changed_sign(linear_problem.changed_sign),
-          artificial_constrait(linear_problem.artificial_constrait),
-          integer_problem(linear_problem.integer_problem),
           binary_problem(linear_problem.binary_problem),
+          integer_problem(linear_problem.integer_problem),
+          artificial_constrait(linear_problem.artificial_constrait),
           solution(linear_problem.solution),
           feasible(linear_problem.feasible),
-          has_solution(linear_problem.has_solution),
-          bounded(linear_problem.bounded),
           solution_value(linear_problem.solution_value) {
         std::vector<std::pair<size_t, Variable*>> idx;
         for (size_t i = 0; i < linear_problem.variables.size(); i++) {
@@ -67,6 +67,7 @@ namespace optimization {
         solution_dimension          = linear_problem.solution_dimension;
         original_solution_dimension = linear_problem.original_solution_dimension;
         objective_function          = linear_problem.objective_function;
+        aux_objective_function      = linear_problem.aux_objective_function;
         plt_objctv_fnctn            = linear_problem.plt_objctv_fnctn;
         constraints                 = linear_problem.constraints;
         no_negative_constraints     = linear_problem.no_negative_constraints;
@@ -79,8 +80,6 @@ namespace optimization {
         binary_problem              = linear_problem.binary_problem;
         solution                    = linear_problem.solution;
         feasible                    = linear_problem.feasible;
-        has_solution                = linear_problem.has_solution;
-        bounded                     = linear_problem.bounded;
         solution_value              = linear_problem.solution_value;
 
         std::vector<Variable*>::iterator it;
@@ -425,9 +424,8 @@ namespace optimization {
 
         std::vector<Constraint>::iterator it;
 
-        size_t initial_solution_dimension = solution_dimension;
-
         // Procesamiento de variables no negativas
+        size_t initial_solution_dimension = solution_dimension;
         for (size_t i = 0; i < initial_solution_dimension; i++) {
             // Revisamos cada variable x_i
             bool has_constraint = false;
@@ -438,7 +436,6 @@ namespace optimization {
                     has_constraint = true;
                 }
             }
-
             // Si x_i es una variable libre la partimos en dos
             // x_i = x_i' - x_i''; x_i', x_i'' >= 0
             if (!has_constraint) {
@@ -500,7 +497,7 @@ namespace optimization {
                 variables.push_back(auxiliary);
             }
         }
-
+        /*
         // Procesamiento de las restricciones
         size_t aux = constraints.size();
         for (size_t i = 0; i < aux; i++) {
@@ -522,81 +519,38 @@ namespace optimization {
                 constraints[i].value *= -1.0;
             }
         }
-        // if (!binary_problem) {
-        //  Si el problema no es de tipo 0-1 entonces agregamos una restriccion del tipo
-        //  x_k <= 1 donde x_k es una variable de tipo binaria
-        aux = binary_constraints.size();
-        for (size_t i = 0; i < aux; i++) {
-            Mtrx eye = binary_constraints[i].coefficients;
-            add_constraint(Constraint(eye, LESS_EQUAL, 1.0));
+        if (!binary_problem) {
+            aux = binary_constraints.size();
+            for (size_t i = 0; i < aux; i++) {
+                Mtrx eye = binary_constraints[i].coefficients;
+                add_constraint(Constraint(eye, LESS_EQUAL, 1.0));
+            }
         }
-        //}
+        */
+        // Creamos la funcion objetivo para la fase uno
+        aux_objective_function      = objective_function;
+        aux_objective_function.type = MIN;
+        aux_objective_function.coefficients.setZero();
+        // Transformamos las restricciones en igualdades
         for (it = constraints.begin(); it != constraints.end(); it++) {
-            // Omitimos las restricciones ya procesadas en iteraciones anteriores
-            if (it->type == EQUAL) {
-                continue;
-            }
-
-            // Actualizamos el tipo de restriccion
-            it->type = EQUAL;
-
-            // Agreamos la variable de holgura
+            // Agreamos la variable de holgura o exceso
             std::vector<Constraint>::iterator mit;
-            for (mit = constraints.begin(); mit != constraints.end(); mit++) {
-                if (mit == it) {
-                    mit->add_column(1);
-                } else {
-                    mit->add_column(0);
-                }
-            }
-            for (mit = no_negative_constraints.begin(); mit != no_negative_constraints.end();
-                 mit++) {
-                mit->add_column(0);
-            }
-            for (mit = integer_constraints.begin(); mit != integer_constraints.end(); mit++) {
-                mit->add_column(0);
-            }
-            for (mit = binary_constraints.begin(); mit != binary_constraints.end(); mit++) {
-                mit->add_column(0);
-            }
-
-
-            // Ahora en la funcion objetivo
-            objective_function.add_column(0);
-
-            // Agregamos la restriccion de no negatividad
-            solution_dimension++;
-            Mtrx eye                    = Mtrx::Zero(1, solution_dimension);
-            eye(solution_dimension - 1) = 1;
-            add_constraint(Constraint(eye, NOT_NEGATIVE, 0));
-
-            // Agregamos la nueva variable
-            std::stringstream variable_name;
-            variable_name << "slack_";
-            variable_name << solution_dimension - original_solution_dimension;
-            variables.push_back(new SlackVariable(this, variable_name.str().c_str()));
-        }
-
-        // Procesamiento de la funcion objetivo
-        if (objective_function.type == MIN) {
-            // Como usamos el metodo dual simplex y el simplex clasico
-            // ocupamos siempre una funcion de maximizacion
-            objective_function.type = MAX;
-            changed_sign            = true;
-            // Cambiamos el signo
-            objective_function.coefficients *= -1.0;
-        }
-        aux = objective_function.coefficients.cols();
-        for (size_t i = 0; i < aux; i++) {
-            if (0 < objective_function.coefficients(i)) {
-                // Agregamos una restriccion artificial
-                artificial_constrait = true;
-                // Agregamos su variable de holgura
-                solution_dimension++;
-                objective_function.add_column(0);
-                std::vector<Constraint>::iterator mit;
+            if (it->type != EQUAL) {
                 for (mit = constraints.begin(); mit != constraints.end(); mit++) {
-                    mit->add_column(0);
+                    if (mit == it) {
+                        switch (it->type) {
+                            case LESS_EQUAL:
+                                mit->add_column(1);
+                                break;
+                            case GREATER_EQUAL:
+                                mit->add_column(-1);
+                                break;
+                            default:
+                                break;
+                        }
+                    } else {
+                        mit->add_column(0);
+                    }
                 }
                 for (mit = no_negative_constraints.begin(); mit != no_negative_constraints.end();
                      mit++) {
@@ -608,40 +562,61 @@ namespace optimization {
                 for (mit = binary_constraints.begin(); mit != binary_constraints.end(); mit++) {
                     mit->add_column(0);
                 }
-                std::stringstream variable_name;
-                variable_name << "slack_";
-                variable_name << solution_dimension - original_solution_dimension;
-                variables.push_back(new SlackVariable(this, variable_name.str().c_str()));
-                // Restriccion de no negatividad
+                // Ahora en la funcion objetivo
+                objective_function.add_column(0);
+                aux_objective_function.add_column(0);
+                // Agregamos la restriccion de no negatividad
+                solution_dimension++;
                 Mtrx eye                    = Mtrx::Zero(1, solution_dimension);
                 eye(solution_dimension - 1) = 1;
                 add_constraint(Constraint(eye, NOT_NEGATIVE, 0));
-                // Restriccion x_1 + ... + x_n + s_k = M
-                size_t n_cnstrnts = constraints.size() + 1;
-                for (size_t j = 0; j < solution_dimension - n_cnstrnts; j++) {
-                    eye(j) = 1;
+                // Agregamos la nueva variable
+                std::stringstream variable_name;
+                if (it->type == LESS_EQUAL) {
+                    variable_name << "slack_";
+                    variable_name << solution_dimension - original_solution_dimension;
+                    variables.push_back(new SlackVariable(this, variable_name.str().c_str()));
+                } else if (it->type == GREATER_EQUAL) {
+                    variable_name << "excess_";
+                    variable_name << solution_dimension - original_solution_dimension;
+                    variables.push_back(new ExcessVariable(this, variable_name.str().c_str()));
                 }
-                // Calculamos el valor de M
-                long double buffer;
-                long double max_value = 0.0;
-                for (size_t j = 0; j < solution_dimension; j++) {
-                    buffer    = std::abs(objective_function.coefficients(j));
-                    max_value = (max_value < buffer) ? buffer : max_value;
-                }
-                for (size_t j = 0; j < constraints.size(); j++) {
-                    for (size_t k = 0; k <= solution_dimension; k++) {
-                        if (k == solution_dimension) {
-                            buffer    = std::abs(constraints[j].value);
-                            max_value = (max_value < buffer) ? buffer : max_value;
-                        } else {
-                            buffer    = std::abs(constraints[j].coefficients(k));
-                            max_value = (max_value < buffer) ? buffer : max_value;
-                        }
+            }
+            // Agregamos la variable artificial
+            if (it->type == EQUAL || it->type == GREATER_EQUAL) {
+                for (mit = constraints.begin(); mit != constraints.end(); mit++) {
+                    if (mit == it) {
+                        mit->add_column(1);
+                    } else {
+                        mit->add_column(0);
                     }
                 }
-                add_constraint(Constraint(eye, EQUAL, max_value * _M_));
-                break;
+                for (mit = no_negative_constraints.begin(); mit != no_negative_constraints.end();
+                     mit++) {
+                    mit->add_column(0);
+                }
+                for (mit = integer_constraints.begin(); mit != integer_constraints.end(); mit++) {
+                    mit->add_column(0);
+                }
+                for (mit = binary_constraints.begin(); mit != binary_constraints.end(); mit++) {
+                    mit->add_column(0);
+                }
+                // Ahora en la funcion objetivo
+                objective_function.add_column(0);
+                aux_objective_function.add_column(1);
+                // Agregamos la restriccion de no negatividad
+                solution_dimension++;
+                Mtrx eye                    = Mtrx::Zero(1, solution_dimension);
+                eye(solution_dimension - 1) = 1;
+                add_constraint(Constraint(eye, NOT_NEGATIVE, 0));
+                // Agregamos la nueva variable
+                std::stringstream variable_name;
+                variable_name << "artificial_";
+                variable_name << solution_dimension - original_solution_dimension;
+                variables.push_back(new ArtificialVariable(this, variable_name.str().c_str()));
             }
+            // Actualizamos el tipo de restriccion
+            it->type = EQUAL;
         }
 
         // Comprobamos que todo se haya echo correctamente
@@ -661,7 +636,6 @@ namespace optimization {
                 throw("Error al transformar a la forma estandar 4");
             }
         }
-
         // Actualizamos el nombre
         name += " (Forma estandar)";
         if (VERBOSE) {
@@ -670,32 +644,52 @@ namespace optimization {
         }
     }
 
-    size_t LinearProblem::is_optimal(Mtrx const& tableau) {
-        size_t fixed_column = tableau.cols() - 1;
-        size_t aux          = tableau.rows();
-        size_t min_idx      = 1;
-        for (size_t i = 2; i < aux; i++) {
-            min_idx = (tableau(i, fixed_column) < tableau(min_idx, fixed_column)) ? i : min_idx;
+    ssize_t LinearProblem::is_optimal(Mtrx const& tableau, ObjectiveFunction_T type, bool ignore,
+                                      ColumnSet const& _base) {
+        ssize_t cof_idx = 0;
+        for (ssize_t i = 0; i < tableau.cols() - 1; i++) {
+            if (ignore && variables[i]->type == ARTIFICIAL && !_base.contains(i)) {
+                continue;
+            }
+            if (type == MIN) {
+                cof_idx = (tableau(0, cof_idx) < tableau(0, i)) ? i : cof_idx;
+            } else {
+                cof_idx = (tableau(0, cof_idx) > tableau(0, i)) ? i : cof_idx;
+            }
         }
-        if (tableau(min_idx, fixed_column) < 0.0) {
-            return min_idx;
+        if (type == MIN) {
+            if (tableau(0, cof_idx) > 0.0) {
+                if (tableau(0, cof_idx) < EPSILON) {
+                    return -1;
+                }
+                return cof_idx;
+            } else {
+                return -1;
+            }
+
         } else {
-            return 0;
+            if (tableau(0, cof_idx) < 0.0) {
+                if (tableau(0, cof_idx) > -EPSILON) {
+                    return -1;
+                }
+                return cof_idx;
+            } else {
+                return -1;
+            }
         }
     }
 
-    size_t LinearProblem::min_ratio(Mtrx const& tableau, size_t index) {
-        feasible       = false;
-        size_t aux     = tableau.cols() - 1;
-        size_t min_idx = 0;
-        for (size_t i = 0; i < aux; i++) {
-            if (tableau(index, i) < 0) {
+    ssize_t LinearProblem::min_ratio(Mtrx const& tableau, size_t index) {
+        feasible        = false;
+        ssize_t min_idx = 0;  // Indice invalido temporalmente
+        for (ssize_t i = 1; i < tableau.rows(); i++) {
+            if (tableau(i, index) > 0) {
                 if (!feasible) {
                     min_idx  = i;
                     feasible = true;
                 } else {
-                    min_idx = (tableau(0, i) / tableau(index, i) <
-                               tableau(0, min_idx) / tableau(index, min_idx))
+                    min_idx = (tableau(i, tableau.cols() - 1) / tableau(i, index) <
+                               tableau(min_idx, tableau.cols() - 1) / tableau(min_idx, index))
                                   ? i
                                   : min_idx;
                 }
@@ -709,27 +703,42 @@ namespace optimization {
         return;
     }
 
-    bool LinearProblem::dual_simplex() {
+    bool LinearProblem::two_phase() {
         // creamos un problema temporal
-        has_solution            = false;
         feasible                = false;
         LinearProblem tmp_prblm = *this;
-
+        // Step 1
+        for (std::vector<Constraint>::iterator it = tmp_prblm.constraints.begin();
+             it != tmp_prblm.constraints.end(); it++) {
+            if (it->value < 0.0) {
+                it->coefficients *= -1.0;
+                it->value *= -1.0;
+                switch (it->type) {
+                    case GREATER_EQUAL:
+                        it->type = LESS_EQUAL;
+                        break;
+                    case LESS_EQUAL:
+                        it->type = GREATER_EQUAL;
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+        // Step 2
         tmp_prblm.process_to_standard_form();
-
-        // Creacion del tableau
+        // Step 4
         Mtrx tableau(tmp_prblm.constraints.size() + 1, tmp_prblm.solution_dimension + 1);
-
-        // Funcion objetivo y su valor
+        // Funcion objetivo
         size_t n_clmns = tableau.cols();
         for (size_t i = 0; i < n_clmns; i++) {
             if (!(i + 1 < n_clmns)) {
                 tableau(0, i) = 0.0;
             } else {
-                tableau(0, i) = tmp_prblm.objective_function.coefficients(i);
+                tableau(0, i) = tmp_prblm.aux_objective_function.coefficients(i) * -1.0;
             }
         }
-        // Restricciones y sus valores
+        // Restricciones
         size_t n_rows = tableau.rows();
         for (size_t i = 1; i < n_rows; i++) {
             for (size_t j = 0; j < n_clmns; j++) {
@@ -740,60 +749,58 @@ namespace optimization {
                 }
             }
         }
-        // Hacemos una copia para evaluar el problema dual
-        Mtrx dual_aux = tableau;
-
-        // Creamos nuestra base inicial
+        // Base inicial
         ColumnSet base;
-        size_t    n_cnstrnts = tmp_prblm.constraints.size();
-        for (size_t i = (n_clmns - 1) - n_cnstrnts; i < (n_clmns - 1); i++) {
-            base.insert(i);
+        for (size_t i = 0; i < tmp_prblm.variables.size(); i++) {
+            if (tmp_prblm.variables[i]->type == SLACK ||
+                tmp_prblm.variables[i]->type == ARTIFICIAL) {
+                base.insert(i);
+            }
         }
-        // Revisar si se añadio una restriccion artificial
-        if (tmp_prblm.artificial_constrait) {
-            size_t max_idx   = n_rows - 1;
-            size_t max_idx_z = 0;
-            for (size_t i = 1; i < n_clmns - 1; i++) {
-                max_idx_z = (tableau(0, i) > tableau(0, max_idx_z)) ? i : max_idx_z;
-            }
-            // Actualizamos la base
-            base[max_idx - 1] = max_idx_z;
-            // Hacemos una copia del tableau
-            Mtrx old_tableau = tableau;
-            // Actualizamos el renglon de la variable que sale
-            for (size_t i = 0; i < n_clmns; i++) {
-                tableau(max_idx, i) /= old_tableau(max_idx, max_idx_z);
-            }
-            // Actualizamos el resto de la tabla
-            for (size_t i = 0; i < n_rows; i++) {
-                if (i == max_idx) {
-                    continue;
-                }
-                for (size_t j = 0; j < n_clmns; j++) {
-                    tableau(i, j) =
-                        old_tableau(i, j) - old_tableau(i, max_idx_z) * tableau(max_idx, j);
+        // Sacamos la variables artificiales de la funcion objetivo
+        for (size_t i = 0; i < base.size(); i++) {
+            if (tableau(0, base[i])) {
+                long double aux = tableau(0, base[i]);
+                for (size_t j = 1; j < n_rows; j++) {
+                    if (tableau(j, base[i])) {
+                        for (size_t k = 0; k < n_clmns; k++) {
+                            tableau(0, k) = tableau(0, k) - aux * tableau(j, k);
+                        }
+                        break;
+                    }
                 }
             }
         }
-
-        // Metodo dual simplex
-        if (VERBOSE) std::cout << "\nInicio del metodo:";
-        size_t intrtn = 0;
-        size_t left_variable;
-        while (print_tableu_itr(tableau, intrtn++), left_variable = tmp_prblm.is_optimal(tableau),
-               left_variable) {
-            size_t enter_variable = tmp_prblm.min_ratio(tableau, left_variable);
+        /*
+        for (size_t i = 0; i < n_rows; i++) {
+            long double mean = 0.0;
+            for (size_t j = 0; j < n_clmns; j++) {
+                mean += tableau(i, j);
+            }
+            mean /= tableau.cols();
+            for (size_t j = 0; j < n_clmns; j++) {
+                tableau(i, j) = tableau(i, j) / mean;
+            }
+        }
+        */
+        // Fase uno
+        size_t  intrtn = 0;
+        ssize_t enter_variable;
+        while (print_tableu_itr(tableau, intrtn++),
+               enter_variable = tmp_prblm.is_optimal(tableau, MIN, false, base),
+               enter_variable != -1) {
+            ssize_t left_variable = tmp_prblm.min_ratio(tableau, enter_variable);
             if (tmp_prblm.feasible) {
                 // Actualizamos la base
                 base[left_variable - 1] = enter_variable;
                 // Hacemos una copia del tableau
                 Mtrx old_tableau = tableau;
-                // Actualizamos el renglon de la variable que sale
+                //  Actualizamos el renglon de la variable que sale
                 for (size_t i = 0; i < n_clmns; i++) {
                     tableau(left_variable, i) /= old_tableau(left_variable, enter_variable);
                 }
                 // Actualizamos el resto de la tabla
-                for (size_t i = 0; i < n_rows; i++) {
+                for (ssize_t i = 0; i < tableau.rows(); i++) {
                     if (i == left_variable) {
                         continue;
                     }
@@ -807,149 +814,107 @@ namespace optimization {
                 return false;
             }
         }
-
-        // El problema es factible o no acotado, asi que ahora evaluamos el dual
-        size_t n_nbscs  = tmp_prblm.solution_dimension - n_cnstrnts;
-        size_t d_n_rows = n_nbscs + 1;
-        size_t d_n_clmns =
-            (tmp_prblm.artificial_constrait) ? n_cnstrnts + n_nbscs : n_cnstrnts + n_nbscs + 1;
-        Mtrx dual_tableau = Mtrx::Zero(d_n_rows, d_n_clmns);
-        for (size_t i = 1; i < n_rows; i++) {
-            if (tmp_prblm.artificial_constrait && !(i + 1 < n_rows)) {
+        if (tableau(0, n_clmns - 1) > EPSILON) {
+            if (VERBOSE) puts("Problema infactible");
+            return false;
+        }
+        bool method_end = false;
+        for (size_t i = 0; i < base.size(); i++) {
+            if (tmp_prblm.variables[base[i]]->type == ARTIFICIAL) {
+                method_end = true;
                 break;
             }
-            dual_tableau(0, i - 1) = -dual_aux(i, n_clmns - 1);
         }
-        for (size_t i = 0; i < n_nbscs; i++) {
-            dual_tableau(i + 1, dual_tableau.cols() - 1) = -dual_aux(0, i);
-        }
-        for (size_t i = 1; i < n_rows; i++) {
-            if (tmp_prblm.artificial_constrait && !(i + 1 < n_rows)) {
-                break;
-            }
-            for (size_t j = 0; j < n_nbscs; j++) {
-                dual_tableau(j + 1, i - 1) = -dual_aux(i, j);
-            }
-        }
-        size_t aux_offset = (tmp_prblm.artificial_constrait) ? n_cnstrnts - 1 : n_cnstrnts;
-        for (size_t i = 1; i < d_n_rows; i++) {
-            dual_tableau(i, i + aux_offset - 1) = 1;
-        }
-
-        // Revisamos si necesita restriccion artificial
-        long double max_value = dual_tableau(0, 0);
-        for (size_t i = 0; i < d_n_clmns - d_n_rows; i++) {
-            max_value = (max_value < dual_tableau(0, i)) ? dual_tableau(0, i) : max_value;
-        }
-
-        if (0.0 < max_value) {
-            // Obtenemos el mayor valor en la tabla
-            max_value = dual_tableau(0, 0);
-            for (size_t i = 0; i < d_n_rows; i++) {
-                for (size_t j = 0; j < d_n_clmns; j++) {
-                    max_value = (max_value < dual_tableau(i, j)) ? dual_tableau(i, j) : max_value;
+        if (!method_end) {
+            // Fase dos, resolviendo sin quitar
+            for (size_t i = 0; i < n_clmns; i++) {
+                if (!(i + 1 < n_clmns)) {
+                    tableau(0, i) = 0.0;
+                } else {
+                    tableau(0, i) = tmp_prblm.objective_function.coefficients(i) * -1.0;
                 }
             }
-
-            // Agregamos la nueva restriccion
-            Mtrx new_mtrx = Mtrx::Zero(d_n_rows + 1, d_n_clmns + 1);
-            new_mtrx.topLeftCorner(d_n_rows, d_n_clmns - 1) =
-                dual_tableau.topLeftCorner(d_n_rows, d_n_clmns - 1);
-            new_mtrx.topRightCorner(d_n_rows, 1)  = dual_tableau.topRightCorner(d_n_rows, 1);
-            d_n_rows                              = new_mtrx.rows();
-            d_n_clmns                             = new_mtrx.cols();
-            new_mtrx(d_n_rows - 1, d_n_clmns - 1) = max_value * 90;
-            new_mtrx(d_n_rows - 1, d_n_clmns - 2) = 1;
-            for (size_t i = 0; i < d_n_clmns - d_n_rows; i++) {
-                new_mtrx(d_n_rows - 1, i) = 1;
-            }
-            dual_tableau = new_mtrx;
-
-            // Forzamos la salida de la restriccion artificial
-            size_t max_idx   = d_n_rows - 1;
-            size_t max_idx_z = 0;
-            for (size_t i = 1; i < d_n_clmns - 1; i++) {
-                max_idx_z = (dual_tableau(0, i) > dual_tableau(0, max_idx_z)) ? i : max_idx_z;
-            }
-
-            // Hacemos una copia del tableau
-            Mtrx old_tableau = dual_tableau;
-            // Actualizamos el renglon de la variable que sale
-            for (size_t i = 0; i < d_n_clmns; i++) {
-                dual_tableau(max_idx, i) /= old_tableau(max_idx, max_idx_z);
-            }
-            // Actualizamos el resto de la tabla
-            for (size_t i = 0; i < d_n_rows; i++) {
-                if (i == max_idx) {
-                    continue;
-                }
-                for (size_t j = 0; j < d_n_clmns; j++) {
-                    dual_tableau(i, j) =
-                        old_tableau(i, j) - old_tableau(i, max_idx_z) * dual_tableau(max_idx, j);
-                }
-            }
-        }
-
-        // Repetimos el metodo dual simplex
-        while (left_variable = is_optimal(dual_tableau), left_variable) {
-            size_t enter_variable = min_ratio(dual_tableau, left_variable);
-            if (tmp_prblm.feasible) {
-                // Hacemos una copia del tableau
-                Mtrx old_tableau = dual_tableau;
-                // Actualizamos el renglon de la variable que sale
-                for (size_t i = 0; i < d_n_clmns; i++) {
-                    dual_tableau(left_variable, i) /= old_tableau(left_variable, enter_variable);
-                }
-                // Actualizamos el resto de la tabla
-                for (size_t i = 0; i < d_n_rows; i++) {
-                    if (i == left_variable) {
-                        continue;
-                    }
-                    for (size_t j = 0; j < d_n_clmns; j++) {
-                        dual_tableau(i, j) = old_tableau(i, j) - old_tableau(i, enter_variable) *
-                                                                     dual_tableau(left_variable, j);
+            for (size_t i = 0; i < base.size(); i++) {
+                if (tableau(0, base[i])) {
+                    long double aux = tableau(0, base[i]);
+                    for (size_t j = 1; j < n_rows; j++) {
+                        if (tableau(j, base[i])) {
+                            for (size_t k = 0; k < n_clmns; k++) {
+                                tableau(0, k) = tableau(0, k) - aux * tableau(j, k);
+                            }
+                            break;
+                        }
                     }
                 }
-            } else {
-                if (VERBOSE) puts("Problema no acotado");
-                return false;
+            }
+            while (
+                print_tableu_itr(tableau, intrtn++),
+                enter_variable = tmp_prblm.is_optimal(tableau, objective_function.type, true, base),
+                enter_variable != -1) {
+                ssize_t left_variable = tmp_prblm.min_ratio(tableau, enter_variable);
+                if (tmp_prblm.feasible) {
+                    // Actualizamos la base
+                    base[left_variable - 1] = enter_variable;
+                    // Hacemos una copia del tableau
+                    Mtrx old_tableau = tableau;
+                    //  Actualizamos el renglon de la variable que sale
+                    for (size_t i = 0; i < n_clmns; i++) {
+                        tableau(left_variable, i) /= old_tableau(left_variable, enter_variable);
+                    }
+                    // Actualizamos el resto de la tabla
+                    for (ssize_t i = 0; i < tableau.rows(); i++) {
+                        if (i == left_variable) {
+                            continue;
+                        }
+                        for (size_t j = 0; j < n_clmns; j++) {
+                            tableau(i, j) = old_tableau(i, j) - old_tableau(i, enter_variable) *
+                                                                    tableau(left_variable, j);
+                        }
+                    }
+                } else {
+                    if (VERBOSE) puts("Problema infactible");
+                    return false;
+                }
             }
         }
 
-        // Guardamos los resultados obtenidos
-        if (tmp_prblm.changed_sign) {
-            tmp_prblm.solution_value = tableau(0, n_clmns - 1);
-        } else {
-            tmp_prblm.solution_value = -tableau(0, n_clmns - 1);
-        }
         Mtrx pre_solution = Mtrx::Zero(1, tmp_prblm.solution_dimension);
-        for (size_t i = 0; i < n_cnstrnts; i++) {
+        for (size_t i = 0; i < tmp_prblm.constraints.size(); i++) {
             pre_solution(base[i]) = tableau(i + 1, n_clmns - 1);
         }
-        // Procesamos todas las variables: el error esta en este bloque
+        // Procesamos todas las variables
         tmp_prblm.solution                        = Mtrx::Zero(1, tmp_prblm.solution_dimension);
         std::vector<Variable*>::const_iterator it = tmp_prblm.variables.begin();
         for (size_t idx = 0; idx < tmp_prblm.solution_dimension && it != tmp_prblm.variables.end();
              it++, idx++) {
             (*it)->process(pre_solution, tmp_prblm.solution, idx);
         }
-        tmp_prblm.has_solution = true;
-        bounded                = true;
+
+        tmp_prblm.solution_value = 0.0;
+        for (size_t i = 0; i < solution_dimension; i++) {
+            tmp_prblm.solution_value +=
+                tmp_prblm.objective_function.coefficients(i) * tmp_prblm.solution(i);
+        }
         // Cargamos los datos al problema original
         solution_value = tmp_prblm.solution_value;
         feasible       = tmp_prblm.feasible;
-        has_solution   = tmp_prblm.has_solution;
         solution       = Mtrx::Zero(1, tmp_prblm.original_solution_dimension);
         for (size_t i = 0; i < tmp_prblm.original_solution_dimension; i++) {
             solution(i) = tmp_prblm.solution(i);
         }
-
         return true;
     }
 
     void LinearProblem::branch_and_bound() {
-        dual_simplex();
-        if (has_solution) {
+        two_phase();
+        log();
+        if (feasible) {
+            std::cout << "# Problema factible" << std::endl;
+        } else {
+            std::cout << "# Problema no factible" << std::endl;
+        }
+        print_solution();
+        if (feasible) {
             // Para verificar que el programa no se rompa
             assert(static_cast<long long>(original_solution_dimension) ==
                    integer_constraints[0].coefficients.cols());
@@ -979,30 +944,22 @@ namespace optimization {
                     break;
                 }
             }
-
             // Metodo de bnb
             long double bound;
             bool        bound_found = false;
             while (!tree.empty()) {
                 LinearProblem tmp = tree.top();
                 tree.pop();
-                tmp.dual_simplex();
+                tmp.two_phase();
+
                 tmp.log();
+                if (feasible) {
+                    std::cout << "# Problema factible" << std::endl;
+                } else {
+                    std::cout << "# Problema no factible" << std::endl;
+                }
                 tmp.print_solution();
-                std::cout << std::endl;
                 if (tmp.feasible) {
-                    std::cout << "\tProblema factible" << std::endl;
-                } else {
-                    std::cout << "\tProblema no factible" << std::endl;
-                }
-                if (tmp.bounded) {
-                    std::cout << "\tProblema acotado" << std::endl;
-                } else {
-                    std::cout << "\tProblema no acotado" << std::endl;
-                }
-                std::cout << "#####################################################################"
-                             "#################################################\n";
-                if (tmp.has_solution) {
                     if (bound_found) {
                         if (objective_function.type == MAX && bound > tmp.solution_value) {
                             continue;
@@ -1011,21 +968,39 @@ namespace optimization {
                         }
                     }
                     bool factible_solution = true;
+                    bool ignore;
                     for (size_t i = 0; i < original_solution_dimension; i++) {
-                        // si la variable i debe ser entera y tiene solucion decimal
-                        if (int_vars(i) && (fmodl(tmp.solution(i), 1.0))) {
+                        if (int_vars(i) && fmodl(tmp.solution(i), 1.0)) {
                             factible_solution = false;
+                            ignore            = false;
                             Mtrx tmp_mtrx     = Mtrx::Zero(1, original_solution_dimension);
                             tmp_mtrx(i)       = 1.0;
                             // Creamos el subproblema 2
                             LinearProblem tmp_0 = tmp;
-                            tmp_0.add_constraint(
-                                Constraint(tmp_mtrx, GREATER_EQUAL, floor(tmp.solution(i)) + 1.0));
+                            Constraint    aux;
+                            aux = Constraint(tmp_mtrx, GREATER_EQUAL, floor(tmp.solution(i)) + 1.0);
+                            for (it = tmp.constraints.begin(); it != tmp.constraints.end(); it++) {
+                                if ((*it) == aux) {
+                                    factible_solution = true;
+                                    ignore            = true;
+                                    break;
+                                }
+                            }
+                            if (ignore) continue;
+                            tmp_0.add_constraint(aux);
                             tree.push(tmp_0);
                             // Creamos el subproblema 1
                             tmp_0 = tmp;
-                            tmp_0.add_constraint(
-                                Constraint(tmp_mtrx, LESS_EQUAL, floor(tmp.solution(i))));
+                            aux   = Constraint(tmp_mtrx, LESS_EQUAL, floor(tmp.solution(i)));
+                            for (it = tmp.constraints.begin(); it != tmp.constraints.end(); it++) {
+                                if ((*it) == aux) {
+                                    factible_solution = true;
+                                    ignore            = true;
+                                    break;
+                                }
+                            }
+                            if (ignore) continue;
+                            tmp_0.add_constraint(aux);
                             tree.push(tmp_0);
                             break;
                         }
@@ -1038,20 +1013,17 @@ namespace optimization {
                             bound          = solution_value;
                             bound_found    = true;
                         } else {
-                            if (objective_function.type == MAX) {
+                            if (objective_function.type == MAX && bound < tmp.solution_value) {
                                 // Cota inferior
-                                if (bound < tmp.solution_value) {
-                                    solution_value = tmp.solution_value;
-                                    solution       = tmp.solution;
-                                    bound          = solution_value;
-                                }
-                            } else {
+                                solution_value = tmp.solution_value;
+                                solution       = tmp.solution;
+                                bound          = solution_value;
+                            } else if (objective_function.type == MIN &&
+                                       bound > tmp.solution_value) {
                                 // Cota superior
-                                if (tmp.solution_value < bound) {
-                                    solution_value = tmp.solution_value;
-                                    solution       = tmp.solution;
-                                    bound          = solution_value;
-                                }
+                                solution_value = tmp.solution_value;
+                                solution       = tmp.solution;
+                                bound          = solution_value;
                             }
                         }
                         // Solo se esta prendiendo la primera vez que encuentra una cota
@@ -1065,15 +1037,11 @@ namespace optimization {
     void LinearProblem::solve() {
         if (integer_problem) {
             branch_and_bound();
-            if (has_solution) {
-                print_solution();
-            }
         } else {
-            // Aqui me gustaria agregar tambien el metodo de las dos fases
-            if (dual_simplex()) {
-                std::cout << "Solution_value: " << solution_value << std::endl;
-                print_solution();
-            }
+            two_phase();
+        }
+        if (feasible) {
+            print_solution();
         }
         return;
     }
@@ -1162,14 +1130,16 @@ namespace optimization {
         std::cout << "Solucion:" << std::endl;
         std::cout << "Z  =\t" << solution_value << std::endl;
         for (size_t i = 0; i < original_solution_dimension; i++) {
-            if (variables[i]->type == ORDINARY || variables[i]->type == SPLITTED) {
-                std::cout << variables[i]->name << " =\t" << solution(i) << std::endl;
-            }
+            std::cout << variables[i]->name << " =\t" << solution(i) << std::endl;
         }
-        // Solucion grafica aun no disponible para problemas enteros
+        puts(
+            "######################################################################################"
+            "##############################################################################");
+        /*
         if (!integer_problem && original_solution_dimension == 2) {
             plot();
         }
+        */
 
         return;
     }

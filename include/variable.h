@@ -46,6 +46,26 @@ namespace optimization {
         virtual SlackVariable* clone();
     };
 
+    class ExcessVariable : public Variable {
+        friend class LinearProblem;
+
+       public:
+        ExcessVariable(LinearProblem* crtr, char const* _name);
+        ~ExcessVariable();
+        void                    process(Mtrx& calculated_solution, Mtrx& solution, size_t _idx);
+        virtual ExcessVariable* clone();
+    };
+
+    class ArtificialVariable : public Variable {
+        friend class LinearProblem;
+
+       public:
+        ArtificialVariable(LinearProblem* crtr, char const* _name);
+        ~ArtificialVariable();
+        void                   process(Mtrx& calculated_solution, Mtrx& solution, size_t _idx);
+        virtual ArtificialVariable* clone();
+    };
+
     class AuxiliaryVariable : public Variable {
         friend class LinearProblem;
         friend class SplittedVariable;

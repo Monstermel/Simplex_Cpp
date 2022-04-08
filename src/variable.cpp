@@ -36,6 +36,29 @@ namespace optimization {
         return (new SlackVariable(*this));
     }  // Devuelve una copia de si mismo
 
+    ExcessVariable::ExcessVariable(LinearProblem* crtr, char const* _name) : Variable(crtr, _name) {
+        type = EXCESS;
+    }
+    ExcessVariable::~ExcessVariable() {}
+    void ExcessVariable::process(Mtrx& calculated_solution, Mtrx& solution, size_t _idx) {
+        solution(_idx) = calculated_solution(_idx);
+    }
+    ExcessVariable* ExcessVariable::clone() {
+        return (new ExcessVariable(*this));
+    }  // Devuelve una copia de si mismo
+
+    ArtificialVariable::ArtificialVariable(LinearProblem* crtr, char const* _name)
+        : Variable(crtr, _name) {
+        type = ARTIFICIAL;
+    }
+    ArtificialVariable::~ArtificialVariable() {}
+    void ArtificialVariable::process(Mtrx& calculated_solution, Mtrx& solution, size_t _idx) {
+        solution(_idx) = calculated_solution(_idx);
+    }
+    ArtificialVariable* ArtificialVariable::clone() {
+        return (new ArtificialVariable(*this));
+    }  // Devuelve una copia de si mismo
+
     AuxiliaryVariable::AuxiliaryVariable(LinearProblem* crtr, char const* _name, size_t _idx)
         : Variable(crtr, _name), idx(_idx) {
         type = AUXILIARY;

@@ -3,12 +3,14 @@
 
 #include <Eigen/Dense>
 #include <algorithm>
+#include <cstdio>
 #include <iostream>
 #include <string>
 #include <vector>
 
 constexpr auto VERBOSE = false;
-constexpr auto _M_     = 10.0;
+constexpr auto SCALING = false;
+constexpr auto EPSILON = __FLT_EPSILON__;
 
 namespace optimization {
     typedef Eigen::Matrix<long double, Eigen::Dynamic, Eigen::Dynamic> Mtrx;
@@ -22,7 +24,15 @@ namespace optimization {
         friend class LinearProblem;
 
        public:
+        Constraint(){};
         Constraint(Mtrx const& cffcnts, Constraint_T _type, long double _value);
+
+        bool operator==(const Constraint foo) {
+            if (coefficients != foo.coefficients || type != foo.type || value != foo.value) {
+                return false;
+            }
+            return true;
+        }
 
         void log() const;
         void add_column(long double _value);
@@ -83,37 +93,38 @@ namespace optimization {
         void print_tableu_itr(Mtrx tableau, size_t itr) const;
 
         void solve();
-        bool dual_simplex();
+        bool simplex();
+        bool two_phase();
         void branch_and_bound();
-        void process_to_standard_form();  // Checar esta funcion
+        void process_to_standard_form();
 
        protected:
-        size_t is_optimal(Mtrx const& tableau);               // Checar esta funcion
-        size_t min_ratio(Mtrx const& tableau, size_t index);  // Tambien revisar esta
+        ssize_t is_optimal(Mtrx const& tableau, ObjectiveFunction_T type, bool ignore,
+                           ColumnSet const& _base);            // Checar esta funcion
+        ssize_t min_ratio(Mtrx const& tableau, size_t index);  // Tambien revisar esta
 
         // Datos del problema lineal
         std::string             name;
         size_t                  solution_dimension;
         size_t                  original_solution_dimension;
         ObjectiveFunction       objective_function;
+        ObjectiveFunction       aux_objective_function;
         ObjectiveFunction       plt_objctv_fnctn;  // Copia para poder graficar
-        std::vector<Constraint> constraints;
-        std::vector<Constraint> no_negative_constraints;
-        std::vector<Constraint> integer_constraints;
-        std::vector<Constraint> binary_constraints;
-        std::vector<Constraint> plt_cnstrnts;  // Copia para poder graficar
         std::vector<Variable*>  variables;
+        std::vector<Constraint> constraints;
+        std::vector<Constraint> plt_cnstrnts;  // Copia para poder graficar
+        std::vector<Constraint> binary_constraints;
+        std::vector<Constraint> integer_constraints;
+        std::vector<Constraint> no_negative_constraints;
         bool                    changed_sign         = false;
-        bool                    artificial_constrait = false;
-        bool                    integer_problem      = false;
         bool                    binary_problem       = true;
+        bool                    integer_problem      = false;
+        bool                    artificial_constrait = false;
         // binary_problem (0-1 IP) es verdadero hasta que se demuestre lo contrario
 
         // Resultados
         Mtrx        solution;
-        bool        feasible     = false;
-        bool        has_solution = false;
-        bool        bounded      = false;
+        bool        feasible = false;
         long double solution_value;
     };
 

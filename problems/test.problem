@@ -1,16 +1,37 @@
 Dimension
-    5
+    14
 
 Variables
-    int  x1 0 inf
-    int  x2 0 inf
-    int  x3 0 inf
-    int  x4 0 inf
-    int  x5 0 inf
+    int  x1  0 inf
+    int  x2  0 inf
+    int  x3  0 inf
+    int  x4  0 inf
+    int  x5  0 inf
+    int  x6  0 inf
+    int  x7  0 inf
+    int  x8  0 inf
+    int  x9  0 inf
+    int  x10  0 inf
+    int  x11  0 inf
+    int  x12  0 inf
+    int  x13  0 inf
+    int  x14  0 inf
 
 Restricciones
-    5 8 3 2 7 < 112
-    1 8 6 5 4 < 109
+    1 1 2 0 0 0 0 1 1 0 0 0 0 0 = 9
+    1 0 0 0 1 4 1 1 0 1 0 0 0 0 = 12
+    1 1 0 0 1 1 0 1 0 0 1 0 0 0 = 7
+    1 1 0 3 1 2 0 1 0 0 0 1 0 0 = 9
+    1 0 2 0 0 0 3 1 0 0 0 0 1 0 = 9
+    0 0 0 2 1 0 1 1 0 0 0 0 0 1 = 4
+    1 0 0 0 0 0 0 0 0 0 0 0 0 0 < 4
+    0 1 0 0 0 0 0 0 0 0 0 0 0 0 < 4
+    0 0 1 0 0 0 0 0 0 0 0 0 0 0 < 4
+    0 0 0 1 0 0 0 0 0 0 0 0 0 0 < 4
+    0 0 0 0 1 0 0 0 0 0 0 0 0 0 < 4
+    0 0 0 0 0 1 0 0 0 0 0 0 0 0 < 4
+    0 0 0 0 0 0 1 0 0 0 0 0 0 0 < 4
+    0 0 0 0 0 0 0 1 0 0 0 0 0 0 < 4
 
 Objetivo
-    max 400 700 600 500 400
+    max 17 10 15 19 14 25 20 22 -1 -2 -3 -4 -5 -6 
