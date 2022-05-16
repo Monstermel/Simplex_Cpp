@@ -1,6 +1,6 @@
+#include <iostream>
 
 #include "simplex.h"
-
 namespace optimization {
 
     ObjectiveFunction::ObjectiveFunction() {}

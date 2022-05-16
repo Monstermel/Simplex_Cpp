@@ -17,7 +17,8 @@ add_executable(solver
     src/main.cpp
     src/objectivefunction.cpp
     src/simplex.cpp
-    src/variable.cpp)
+    src/variable.cpp
+    src/graph.cpp)
 
 target_link_libraries (solver ${Python3_LIBRARIES})
 

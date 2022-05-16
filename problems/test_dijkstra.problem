@@ -1,0 +1,22 @@
+GRAPH
+
+Nodos
+    node N1 
+    node N2 
+    node N3
+    node N4
+    node N5
+    node N6
+    node N7
+
+Aristas
+    N1 > N2:5 N3:1
+    N2 > N3:2 N4:5 N5:8 N6:6
+    N3 > N4:6 N5:7
+    N4 > N1:9 N3:7 N6:4
+    N5 > N4:3 N6:5 N7:9
+    N6 > N2:7 N7:2
+    N7 > N4:6
+
+Objetivo
+    SHORTEST_PATH N1

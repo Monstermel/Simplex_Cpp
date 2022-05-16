@@ -1,4 +1,3 @@
-
 #include "variable.h"
 
 namespace optimization {

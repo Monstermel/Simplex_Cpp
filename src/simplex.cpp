@@ -1,24 +1,14 @@
-/*
-    Cosas por agregar:
-        Implementar la capicidad de que la funcion objetivo acepte constantes
-*/
-
 #include "simplex.h"
 
 #include <Python.h>
-#include <assert.h>
 
-#include <cstdlib>
-#include <ctgmath>
 #include <fstream>
-#include <iomanip>
-#include <limits>
-#include <map>
-#include <sstream>
+#include <iostream>
 #include <stack>
 
-#include "sys/stat.h"
+#include "config.h"
 #include "variable.h"
+
 
 namespace optimization {
     LinearProblem::LinearProblem(char const* _name)
@@ -120,228 +110,221 @@ namespace optimization {
 
     void LinearProblem::add_variable(Variable* variable) { variables.push_back(variable); }
 
-    void LinearProblem::load_problem(char const* problem_name) {
-        std::ifstream file(problem_name);
+    void LinearProblem::load_problem(std::ifstream& file) {
+        // Variable enum para determiar que bloque estamos leyendo
+        ParsingContext current_parsing_block = NONE;
+        // Variable que cuenta el numero de variables registradas
+        size_t current_var = 0;
 
-        if (file.is_open()) {
-            // Variable enum para determiar que bloque estamos leyendo
-            ParsingContext current_parsing_block = NONE;
-            // Variable que cuenta el numero de variables registradas
-            size_t current_var = 0;
+        while (!file.eof()) {
+            // Extraemos una linea hasta encontrar \n
+            std::string buffer_init;
+            getline(file, buffer_init);
+            // Extraemos strings hasta encontrear un espacio
+            // Si el primer caractar es un espacio lo extrae pero no lo guarda
+            std::stringstream buffer(buffer_init);
+            std::string       token;
+            buffer >> token;
 
-            while (!file.eof()) {
-                // Extraemos una linea hasta encontrar \n
-                std::string buffer_init;
-                getline(file, buffer_init);
-                // Extraemos strings hasta encontrear un espacio
-                // Si el primer caractar es un espacio lo extrae pero no lo guarda
-                std::stringstream buffer(buffer_init);
-                std::string       token;
-                buffer >> token;
+            if (token.length()) {
+                if (token == "Dimension")
+                    current_parsing_block = DATA;
+                else if (token == "Variables")
+                    current_parsing_block = VARS;
+                else if (token == "Restricciones")
+                    current_parsing_block = CONSTRAINTS;
+                else if (token == "Objetivo")
+                    current_parsing_block = OBJECTIVE;
+                else {
+                    if (current_parsing_block == NONE) {
+                        throw("Indentificador de bloque invalido");
+                    }
+                    switch (current_parsing_block) {
+                        case DATA: {
+                            try {
+                                solution_dimension          = std::stoul(token);
+                                original_solution_dimension = solution_dimension;
+                            } catch (...) {
+                                throw("Definicion inconsistente de dimension");
+                            }
+                        } break;
 
-                if (token.length()) {
-                    if (token == "Dimension")
-                        current_parsing_block = DATA;
-                    else if (token == "Variables")
-                        current_parsing_block = VARS;
-                    else if (token == "Restricciones")
-                        current_parsing_block = CONSTRAINTS;
-                    else if (token == "Objetivo")
-                        current_parsing_block = OBJECTIVE;
-                    else {
-                        if (current_parsing_block == NONE) {
-                            throw("Indentificador de bloque invalido");
-                        }
-                        switch (current_parsing_block) {
-                            case DATA: {
-                                try {
-                                    solution_dimension          = std::stoul(token);
-                                    original_solution_dimension = solution_dimension;
-                                } catch (...) {
-                                    throw("Definicion inconsistente de dimension");
-                                }
-                            } break;
+                        case VARS: {
+                            // No podemos llegar aqui si DATA
+                            if (!solution_dimension) {
+                                throw("No se ha cargado el numero de variables");
+                            } else if (solution_dimension == current_var) {
+                                throw("Definicion inconsistente de variables");
+                            }
+                            Mtrx aux = Mtrx::Zero(1, solution_dimension);
 
-                            case VARS: {
-                                // No podemos llegar aqui si DATA
-                                if (!solution_dimension) {
-                                    throw("No se ha cargado el numero de variables");
-                                } else if (solution_dimension == current_var) {
-                                    throw("Definicion inconsistente de variables");
-                                }
-                                Mtrx aux = Mtrx::Zero(1, solution_dimension);
+                            aux(current_var) = 1;
 
-                                aux(current_var) = 1;
+                            std::string var_type;
+                            var_type = token;
+                            std::string variable_name;
+                            buffer >> variable_name;
 
-                                std::string var_type;
-                                var_type = token;
-                                std::string variable_name;
-                                buffer >> variable_name;
+                            std::string lower_bound;
+                            std::string upper_bound;
+                            if (var_type != "bool") {
+                                buffer >> lower_bound;
+                                buffer >> upper_bound;
+                            }
 
-                                std::string lower_bound;
-                                std::string upper_bound;
-                                if (var_type != "bool") {
-                                    buffer >> lower_bound;
-                                    buffer >> upper_bound;
-                                }
+                            if ((upper_bound.empty() && var_type != "bool") ||
+                                (lower_bound.empty() && var_type != "bool") ||
+                                variable_name.empty() || var_type.empty()) {
+                                throw("Definicion de variables invalida");
+                            }
 
-                                if ((upper_bound.empty() && var_type != "bool") ||
-                                    (lower_bound.empty() && var_type != "bool") ||
-                                    variable_name.empty() || var_type.empty()) {
-                                    throw("Definicion de variables invalida");
-                                }
+                            if (var_type == "bool") {
+                                integer_problem = true;
+                                add_constraint(Constraint(aux, BINARY, 1.0));
+                                add_constraint(Constraint(aux, NOT_NEGATIVE, 0.0));
+                            }
 
-                                if (var_type == "bool") {
-                                    integer_problem = true;
+                            if (var_type == "int") {
+                                integer_problem = true;
+                                if (lower_bound == "0" && upper_bound == "1") {
                                     add_constraint(Constraint(aux, BINARY, 1.0));
                                     add_constraint(Constraint(aux, NOT_NEGATIVE, 0.0));
+                                    var_type = "bool";
+                                } else {
+                                    add_constraint(Constraint(aux, INTEGER, 0.0));
                                 }
+                            }
 
-                                if (var_type == "int") {
-                                    integer_problem = true;
-                                    if (lower_bound == "0" && upper_bound == "1") {
-                                        add_constraint(Constraint(aux, BINARY, 1.0));
-                                        add_constraint(Constraint(aux, NOT_NEGATIVE, 0.0));
-                                        var_type = "bool";
-                                    } else {
-                                        add_constraint(Constraint(aux, INTEGER, 0.0));
-                                    }
-                                }
+                            if (var_type == "float") {
+                                binary_problem = false;
+                            }
 
-                                if (var_type == "float") {
-                                    binary_problem = false;
-                                }
-
-                                if (var_type != "bool" && lower_bound != "inf") {
-                                    long double aux_1;
-                                    try {
-                                        aux_1 = std::stold(lower_bound);
-                                    } catch (...) {
-                                        throw("Definicion de variables invalida");
-                                    }
-                                    if (aux_1 == 0.0) {
-                                        add_constraint(Constraint(aux, NOT_NEGATIVE, 0.0));
-                                    } else {
-                                        add_constraint(Constraint(aux, GREATER_EQUAL, aux_1));
-                                    }
-                                }
-                                if (var_type != "bool" && upper_bound != "inf") {
-                                    long double aux_1;
-                                    try {
-                                        aux_1 = std::stold(upper_bound);
-                                    } catch (...) {
-                                        throw("Definicion de variables invalida");
-                                    }
-                                    add_constraint(Constraint(aux, LESS_EQUAL, aux_1));
-                                }
-
-                                add_variable(new Variable(this, variable_name.c_str()));
-                                current_var++;
-                            } break;
-
-                            case CONSTRAINTS: {
-                                // No podemos llegar aqui sin DATA y VARS
-                                if (!solution_dimension) {
-                                    throw("No se ha cargado el numero de variables");
-                                }
-                                if (!current_var) {
-                                    throw("No se han cargado las variables");
-                                }
-                                if (current_var != solution_dimension) {
-                                    throw("Definicion inconsistente de variables");
-                                }
-
-                                Mtrx coefficients(1, solution_dimension);
+                            if (var_type != "bool" && lower_bound != "inf") {
+                                long double aux_1;
                                 try {
-                                    coefficients(0) = std::stold(token);
+                                    aux_1 = std::stold(lower_bound);
+                                } catch (...) {
+                                    throw("Definicion de variables invalida");
+                                }
+                                if (aux_1 == 0.0) {
+                                    add_constraint(Constraint(aux, NOT_NEGATIVE, 0.0));
+                                } else {
+                                    add_constraint(Constraint(aux, GREATER_EQUAL, aux_1));
+                                }
+                            }
+                            if (var_type != "bool" && upper_bound != "inf") {
+                                long double aux_1;
+                                try {
+                                    aux_1 = std::stold(upper_bound);
+                                } catch (...) {
+                                    throw("Definicion de variables invalida");
+                                }
+                                add_constraint(Constraint(aux, LESS_EQUAL, aux_1));
+                            }
+
+                            add_variable(new Variable(this, variable_name.c_str()));
+                            current_var++;
+                        } break;
+
+                        case CONSTRAINTS: {
+                            // No podemos llegar aqui sin DATA y VARS
+                            if (!solution_dimension) {
+                                throw("No se ha cargado el numero de variables");
+                            }
+                            if (!current_var) {
+                                throw("No se han cargado las variables");
+                            }
+                            if (current_var != solution_dimension) {
+                                throw("Definicion inconsistente de variables");
+                            }
+
+                            Mtrx coefficients(1, solution_dimension);
+                            try {
+                                coefficients(0) = std::stold(token);
+                            } catch (...) {
+                                throw("Definicion de restricciones invalida");
+                            }
+                            for (size_t i = 1; i < solution_dimension; i++) {
+                                std::string aux;
+                                buffer >> aux;
+                                try {
+                                    coefficients(i) = std::stold(aux);
                                 } catch (...) {
                                     throw("Definicion de restricciones invalida");
                                 }
-                                for (size_t i = 1; i < solution_dimension; i++) {
-                                    std::string aux;
-                                    buffer >> aux;
-                                    try {
-                                        coefficients(i) = std::stold(aux);
-                                    } catch (...) {
-                                        throw("Definicion de restricciones invalida");
-                                    }
-                                }
+                            }
 
-                                std::string cnstrnt_type;
-                                buffer >> cnstrnt_type;
-                                std::string cnstrnt_value;
-                                buffer >> cnstrnt_value;
-                                if (cnstrnt_value.empty() || cnstrnt_type.empty()) {
-                                    throw("Definicion de restricciones invalida");
-                                }
-                                long double bound;
+                            std::string cnstrnt_type;
+                            buffer >> cnstrnt_type;
+                            std::string cnstrnt_value;
+                            buffer >> cnstrnt_value;
+                            if (cnstrnt_value.empty() || cnstrnt_type.empty()) {
+                                throw("Definicion de restricciones invalida");
+                            }
+                            long double bound;
+                            try {
+                                bound = std::stold(cnstrnt_value);
+                            } catch (...) {
+                                throw("Definicion de restricciones invalida");
+                            }
+
+                            if (cnstrnt_type == ">")
+                                add_constraint(Constraint(coefficients, GREATER_EQUAL, bound));
+                            else if (cnstrnt_type == "<")
+                                add_constraint(Constraint(coefficients, LESS_EQUAL, bound));
+                            else if (cnstrnt_type == "=")
+                                add_constraint(Constraint(coefficients, EQUAL, bound));
+                            else {
+                                throw("Definicion de restricciones invalida");
+                            }
+                        } break;
+
+                        case OBJECTIVE: {
+                            if (solution_dimension == 0) {
+                                throw("No se ha cargado el numero de variables");
+                            }
+                            Mtrx costs(1, solution_dimension);
+                            for (size_t i = 0; i < solution_dimension; i++) {
+                                std::string aux;
+                                buffer >> aux;
                                 try {
-                                    bound = std::stold(cnstrnt_value);
+                                    costs(i) = std::stold(aux);
                                 } catch (...) {
-                                    throw("Definicion de restricciones invalida");
-                                }
-
-                                if (cnstrnt_type == ">")
-                                    add_constraint(Constraint(coefficients, GREATER_EQUAL, bound));
-                                else if (cnstrnt_type == "<")
-                                    add_constraint(Constraint(coefficients, LESS_EQUAL, bound));
-                                else if (cnstrnt_type == "=")
-                                    add_constraint(Constraint(coefficients, EQUAL, bound));
-                                else {
-                                    throw("Definicion de restricciones invalida");
-                                }
-                            } break;
-
-                            case OBJECTIVE: {
-                                if (solution_dimension == 0) {
-                                    throw("No se ha cargado el numero de variables");
-                                }
-                                Mtrx costs(1, solution_dimension);
-                                for (size_t i = 0; i < solution_dimension; i++) {
-                                    std::string aux;
-                                    buffer >> aux;
-                                    try {
-                                        costs(i) = std::stold(aux);
-                                    } catch (...) {
-                                        throw("Definicion de funcion objetivo invalida");
-                                    }
-                                }
-
-                                if (token == "max")
-                                    set_objective_function(ObjectiveFunction(MAX, costs));
-                                else if (token == "min")
-                                    set_objective_function(ObjectiveFunction(MIN, costs));
-                                else {
                                     throw("Definicion de funcion objetivo invalida");
                                 }
-                            } break;
-                            case NONE:
-                                break;
-                        }
+                            }
+
+                            if (token == "max")
+                                set_objective_function(ObjectiveFunction(MAX, costs));
+                            else if (token == "min")
+                                set_objective_function(ObjectiveFunction(MIN, costs));
+                            else {
+                                throw("Definicion de funcion objetivo invalida");
+                            }
+                        } break;
+                        case NONE:
+                            break;
                     }
                 }
             }
-            file.close();
-            // Verificacion de lectura
-            if (!solution_dimension || !current_var) {
-                throw("Archivo de problema invalido");
-            }
-            if (current_var != solution_dimension) {
-                throw("Archivo de problema invalido");
-            }
-            if (constraints.empty()) {
-                throw("Archivo de problema invalido");
-            }
-            if (!(objective_function.coefficients.cols())) {
-                throw("Archivo de problema invalido");
-            }
-            if (VERBOSE) {
-                log();
-            }
-        } else {
-            throw("No se pudo abrir el archivo");
         }
-
+        file.close();
+        // Verificacion de lectura
+        if (!solution_dimension || !current_var) {
+            throw("Archivo de problema invalido");
+        }
+        if (current_var != solution_dimension) {
+            throw("Archivo de problema invalido");
+        }
+        if (constraints.empty()) {
+            throw("Archivo de problema invalido");
+        }
+        if (!(objective_function.coefficients.cols())) {
+            throw("Archivo de problema invalido");
+        }
+        if (VERBOSE) {
+            log();
+        }
         return;
     }
 
@@ -497,36 +480,16 @@ namespace optimization {
                 variables.push_back(auxiliary);
             }
         }
-        /*
-        // Procesamiento de las restricciones
-        size_t aux = constraints.size();
-        for (size_t i = 0; i < aux; i++) {
-            if (constraints[i].type == EQUAL) {
-                // Las restricciones del tipo
-                // a_1x_1 + a_2x_2 + ... + a_nx_n = C
-                // se transforman en dos
-                // a_1x_1 + a_2x_2 + ... + a_nx_n <= C
-                // a_1x_1 + a_2x_2 + ... + a_nx_n >= C
 
-                // Cambiamos la restriccion de = a <=
-                constraints[i].type = LESS_EQUAL;
-                // Agregamos la restriccion auxiliar y la invertimos
-                Mtrx eye = -1.0 * constraints[i].coefficients;
-                add_constraint(Constraint(eye, LESS_EQUAL, -1.0 * constraints[i].value));
-            } else if (constraints[i].type == GREATER_EQUAL) {
-                // Invertimos las restricciones del tipo >=
-                constraints[i].coefficients *= -1.0;
-                constraints[i].value *= -1.0;
-            }
-        }
-        if (!binary_problem) {
-            aux = binary_constraints.size();
+
+        if (binary_problem) {
+            size_t aux = binary_constraints.size();
             for (size_t i = 0; i < aux; i++) {
                 Mtrx eye = binary_constraints[i].coefficients;
                 add_constraint(Constraint(eye, LESS_EQUAL, 1.0));
             }
         }
-        */
+
         // Creamos la funcion objetivo para la fase uno
         aux_objective_function      = objective_function;
         aux_objective_function.type = MIN;
@@ -945,7 +908,7 @@ namespace optimization {
                 }
             }
             // Metodo de bnb
-            long double bound;
+            long double bound{0};
             bool        bound_found = false;
             while (!tree.empty()) {
                 LinearProblem tmp = tree.top();

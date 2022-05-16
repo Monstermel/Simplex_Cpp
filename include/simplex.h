@@ -2,15 +2,6 @@
 #define SIMPLEX_H
 
 #include <Eigen/Dense>
-#include <algorithm>
-#include <cstdio>
-#include <iostream>
-#include <string>
-#include <vector>
-
-constexpr auto VERBOSE = false;
-constexpr auto SCALING = false;
-constexpr auto EPSILON = __FLT_EPSILON__;
 
 namespace optimization {
     typedef Eigen::Matrix<long double, Eigen::Dynamic, Eigen::Dynamic> Mtrx;
@@ -83,7 +74,7 @@ namespace optimization {
 
 
         void add_variable(Variable* var);
-        void load_problem(char const* problem_name);
+        void load_problem(std::ifstream& file);
         void add_constraint(Constraint const& constraint);
         void set_objective_function(ObjectiveFunction const& objective_function);
 

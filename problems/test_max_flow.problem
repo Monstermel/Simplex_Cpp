@@ -1,0 +1,19 @@
+GRAPH
+
+Nodos
+    node SO
+    node N1
+    node N2
+    node N3
+    node N4
+    node SI
+
+Aristas
+    SO > N1:4 N2:6
+    N1 > N3:6 N4:2
+    N2 > N1:4 N4:4
+    N3 > SI:6
+    N4 > N3:1 SI:2
+
+Objetivo
+    MAX_FLOW SO > SI

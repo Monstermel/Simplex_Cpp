@@ -1,3 +1,5 @@
+SIMPLEX
+
 Informacion
 2
 
@@ -6,9 +8,9 @@ Variables
 0 x2 inf
 
 Restricciones
-1  2 < 120
-1  1 > 60
-1 -2 > 0
+1 0 < 4
+0 2 < 12
+3 2 < 18
 
 Objetivo
-max 5 10
+max 3 5

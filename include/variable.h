@@ -62,7 +62,7 @@ namespace optimization {
        public:
         ArtificialVariable(LinearProblem* crtr, char const* _name);
         ~ArtificialVariable();
-        void                   process(Mtrx& calculated_solution, Mtrx& solution, size_t _idx);
+        void                        process(Mtrx& calculated_solution, Mtrx& solution, size_t _idx);
         virtual ArtificialVariable* clone();
     };
 
