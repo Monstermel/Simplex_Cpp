@@ -15,7 +15,7 @@ namespace optimization {
         void load_problem(std::ifstream& file);
 
        private:
-        const long long INF = std::numeric_limits<long long>::max();
+        const long long INF = std::numeric_limits<long long>::max() / 2;
 
         enum GProblem_T {
             NOT_ASSIGNED,

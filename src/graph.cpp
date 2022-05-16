@@ -202,7 +202,7 @@ namespace optimization {
     void GraphProblem::build_tableau(MtrxI& costs, MtrxI& tableau,
                                      std::vector<ssize_t>& supply_relation,
                                      std::vector<ssize_t>& demand_relation) const {
-        costs   = MtrxI::Zero(num_supply_pnts, num_demand_pnts);
+        assert(total_supply == -total_demand);
         tableau = MtrxI::Zero(num_supply_pnts + 1, num_demand_pnts + 1);
         // Tomamos cada nodo y lo relacionamos con una fila o columna del tanleau
         for (auto node : nodes) {
@@ -217,8 +217,13 @@ namespace optimization {
         }
         assert(supply_relation.size() == num_supply_pnts &&
                demand_relation.size() == num_demand_pnts);
-        assert(total_supply == -total_demand);
-        // Cargamos la supply y demand: faltan los de transporte: ERROR
+        // Cargamos los costos
+        for (ssize_t i = 0; i < costs.rows(); i++) {
+            for (ssize_t j = 0; j < costs.cols(); j++) {
+                costs(i, j) = adjacency(supply_relation[i], demand_relation[j]);
+            }
+        }
+        // Cargamos el suministro y la demanda
         for (ssize_t i = 0; i < tableau.rows() - 1; i++) {
             if (!(b_values[supply_relation[i]])) {
                 tableau(i, tableau.cols() - 1) = total_supply;
@@ -233,13 +238,6 @@ namespace optimization {
                 tableau(tableau.rows() - 1, i) = -b_values[demand_relation[i]];
             }
         }
-        // Cargamos los costos
-        for (ssize_t i = 0; i < costs.rows(); i++) {
-            for (ssize_t j = 0; j < costs.cols(); j++) {
-                costs(i, j) = adjacency(supply_relation[i], demand_relation[j]);
-            }
-        }
-        return;
     }
 
     bool GraphProblem::bfs_not_found(std::vector<bool> const& supply_available,
@@ -274,29 +272,27 @@ namespace optimization {
         while (bfs_not_found(supply_available, demand_available, total_supply_available,
                              total_demand_available)) {
             // Buscamos los dos costos mas pequeños por columna y fila
+            // Meter este paso a una funcion con codigo mas limpio
             std::vector<pair_idx> min_idx_row;
             for (ssize_t i = 0; i < s_num_supply_pnts; i++) {
                 min_idx_row.push_back({-1, -1});
                 if (!supply_available[i]) {
                     continue;
                 }
-                bool found = false;
                 for (ssize_t j = 0; j < s_num_demand_pnts; j++) {
                     if (!demand_available[j]) {
                         continue;
                     }
-                    if (!found) {
+                    if (min_idx_row[i].first == -1) {
                         min_idx_row[i].first = j;
-                        found                = true;
                         if (total_demand_available == 1) {
                             min_idx_row[i].second = j;
                             break;
                         }
-                    } else if (costs(i, j) <= costs(i, min_idx_row[i].first)) {
+                    } else if (costs(i, j) < costs(i, min_idx_row[i].first)) {
                         min_idx_row[i].first = j;
                     }
                 }
-                found = false;
                 for (ssize_t j = 0; j < s_num_demand_pnts; j++) {
                     if (total_demand_available == 1) {
                         break;
@@ -304,10 +300,9 @@ namespace optimization {
                     if (!demand_available[j]) {
                         continue;
                     }
-                    if (!found) {
+                    if (min_idx_row[i].second == -1) {
                         min_idx_row[i].second = j;
-                        found                 = true;
-                    } else if (costs(i, j) <= costs(i, min_idx_row[i].second) &&
+                    } else if (costs(i, j) < costs(i, min_idx_row[i].second) &&
                                costs(i, min_idx_row[i].first) <= costs(i, j) &&
                                min_idx_row[i].first != j) {
                         min_idx_row[i].second = j;
@@ -320,14 +315,12 @@ namespace optimization {
                 if (!demand_available[i]) {
                     continue;
                 }
-                bool found = false;
                 for (ssize_t j = 0; j < s_num_supply_pnts; j++) {
                     if (!supply_available[j]) {
                         continue;
                     }
-                    if (!found) {
+                    if (min_idx_col[i].first == -1) {
                         min_idx_col[i].first = j;
-                        found                = true;
                         if (total_supply_available == 1) {
                             min_idx_col[i].second = j;
                             break;
@@ -336,7 +329,6 @@ namespace optimization {
                         min_idx_col[i].first = j;
                     }
                 }
-                found = false;
                 for (ssize_t j = 0; j < s_num_supply_pnts; j++) {
                     if (total_supply_available == 1) {
                         break;
@@ -344,25 +336,31 @@ namespace optimization {
                     if (!supply_available[j]) {
                         continue;
                     }
-                    if (!found) {
+                    if (min_idx_col[i].second == -1) {
                         min_idx_col[i].second = j;
-                        found                 = true;
-                    } else if (costs(j, i) <= costs(min_idx_col[i].second, i) &&
+                    } else if (costs(j, i) < costs(min_idx_col[i].second, i) &&
                                costs(min_idx_col[i].first, i) <= costs(j, i) &&
                                min_idx_col[i].first != j) {
                         min_idx_col[i].second = j;
                     }
                 }
             }
+
             // Buscamos la penalizacion maxima
-            long long max_penalty{0};
+            long long max_penalty = -1;
             pair_idx  penalty_idx;
-            for (ssize_t i = 0; i < costs.rows(); i++) {
-                if (supply_available[i]) {
+            for (ssize_t i = 0; max_penalty == -1 && i < costs.rows(); i++) {
+                if (supply_available[i] && min_idx_row[i].first != -1) {
                     max_penalty =
                         std::abs(costs(i, min_idx_row[i].first) - costs(i, min_idx_row[i].second));
                     penalty_idx = {i, min_idx_row[i].first};
-                    break;
+                }
+            }
+            for (ssize_t j = 0; max_penalty == -1 && j < costs.cols(); j++) {
+                if (demand_available[j] && min_idx_col[j].first != -1) {
+                    max_penalty =
+                        std::abs(costs(min_idx_col[j].first, j) - costs(min_idx_col[j].second, j));
+                    penalty_idx = {min_idx_col[j].first, j};
                 }
             }
             // Por filas
@@ -374,7 +372,8 @@ namespace optimization {
                     max_penalty = std::numeric_limits<long long>::max();
                     penalty_idx = {i, min_idx_row[i].first};
                 } else if (max_penalty < std::abs(costs(i, min_idx_row[i].first) -
-                                                  costs(i, min_idx_row[i].second))) {
+                                                  costs(i, min_idx_row[i].second)) &&
+                           min_idx_row[i].first != -1) {
                     max_penalty =
                         std::abs(costs(i, min_idx_row[i].first) - costs(i, min_idx_row[i].second));
                     penalty_idx = {i, min_idx_row[i].first};
@@ -389,12 +388,14 @@ namespace optimization {
                     max_penalty = std::numeric_limits<long long>::max();
                     penalty_idx = {min_idx_col[i].first, i};
                 } else if (max_penalty < std::abs(costs(min_idx_col[i].first, i) -
-                                                  costs(min_idx_col[i].second, i))) {
+                                                  costs(min_idx_col[i].second, i)) &&
+                           min_idx_col[i].first != -1) {
                     max_penalty =
                         std::abs(costs(min_idx_col[i].first, i) - costs(min_idx_col[i].second, i));
                     penalty_idx = {min_idx_col[i].first, i};
                 }
             }
+
             // Elegimos la variable basica
             basic_variables(penalty_idx.first, penalty_idx.second) = true;
             tableau(penalty_idx.first, penalty_idx.second) =
@@ -411,6 +412,34 @@ namespace optimization {
             }
         }
     }
+
+    /* Parece que esta mal
+    void GraphProblem::vogel_method(MtrxI& costs, MtrxI& tableau, MtrxB& basic_variables) const {
+        (void) costs;
+        std::vector<bool> supply_available(num_supply_pnts, true);
+        std::vector<bool> demand_available(num_demand_pnts, true);
+
+        for (ssize_t i = 0; i < tableau.rows() - 1; i++) {
+            for (ssize_t j = 0; j < tableau.cols() - 1; j++) {
+                if (supply_available[i] && demand_available[j]) {
+                    basic_variables(i, j) = true;
+                    tableau(i, j) =
+                        std::min(tableau(i, tableau.cols() - 1), tableau(tableau.rows() - 1, j));
+                    tableau(i, tableau.cols() - 1) -= tableau(i, j);
+                    tableau(tableau.rows() - 1, j) -= tableau(i, j);
+                    if (!tableau(tableau.rows() - 1, j)) {
+                        demand_available[j] = false;
+                        continue;
+                    }
+                    if (!tableau(i, tableau.cols() - 1)) {
+                        supply_available[i] = false;
+                        continue;
+                    }
+                }
+            }
+        }
+    }
+    */
 
     pair_idx GraphProblem::is_optimal(MtrxI const& costs, MtrxB const& basic_variables) const {
         const long long        NOT_SET = std::numeric_limits<long long>::max();
@@ -456,6 +485,8 @@ namespace optimization {
                         : pair_idx{i, j};
             }
         }
+        std::cout << "Shadow prices:\n" << shadow_prices << "\n\n";
+
         if (0 < shadow_prices(optimal_test.first, optimal_test.second)) {
             return {optimal_test.first, optimal_test.second};
         }
@@ -561,24 +592,48 @@ namespace optimization {
             default:
                 break;
         }
-        MtrxI                costs;
         MtrxI                tableau;
         std::vector<ssize_t> supply_relation;
         std::vector<ssize_t> demand_relation;
+        MtrxI                costs(num_supply_pnts, num_demand_pnts);
         build_tableau(costs, tableau, supply_relation, demand_relation);
-        MtrxB basic_variables = MtrxB::Zero(num_supply_pnts, num_demand_pnts);
+        MtrxB basic_variables{MtrxB::Zero(num_supply_pnts, num_demand_pnts)};
+        // En realidad es el metodo EsquinaNO mientras encuentro el error
         vogel_method(costs, tableau, basic_variables);
+
+        if (VERBOSE) {
+            std::cout << "Tableau inicial:\n"
+                      << tableau << "\n\n"
+                      << "Variables basicas:\n"
+                      << basic_variables << "\n\n"
+                      << "Costos:\n"
+                      << costs << "\n\n"
+                      << "###################################################################\n";
+        }
+
+
         for (pair_idx enter_var = is_optimal(costs, basic_variables); enter_var.first != -1;
              enter_var          = is_optimal(costs, basic_variables)) {
+            if (VERBOSE) {
+                std::cout
+                    << "Variable de entrada: " << enter_var.first << ' ' << enter_var.second << '\n'
+                    << "Tableau:\n"
+                    << tableau << "\n\n"
+                    << "Variables basicas:\n"
+                    << basic_variables << "\n\n"
+                    << "###################################################################\n";
+            }
+
             std::vector<pair_idx> loop;
             find_loop(enter_var, basic_variables, loop);
             pair_idx min_obv = loop[1];
             for (size_t i = 3; i < loop.size(); i += 2) {
-                min_obv = (tableau(min_obv.first, min_obv.second) <
-                           tableau(loop[i].first, loop[i].second))
-                              ? min_obv
-                              : loop[i];
+                if (tableau(loop[i].first, loop[i].second) <
+                    tableau(min_obv.first, min_obv.second)) {
+                    min_obv = loop[i];
+                }
             }
+
             const long long min_obs_value = tableau(min_obv.first, min_obv.second);
             for (size_t i = 0; i < loop.size(); i++) {
                 if (!(i % 2)) {
@@ -587,21 +642,36 @@ namespace optimization {
                     tableau(loop[i].first, loop[i].second) -= min_obs_value;
                 }
             }
+
             basic_variables(min_obv.first, min_obv.second)     = false;
             basic_variables(enter_var.first, enter_var.second) = true;
-        }
-        std::cout << "Fo = " << tableau(tableau.rows() - 1, tableau.cols() - 1) << '\n';
-        for (ssize_t i = 0; i < tableau.rows() - 1; i++) {
-            for (ssize_t j = 0; j < tableau.cols() - 1; j++) {
-                // antes estaba tableau(i, j), verificar que esta mal eso
-                if (basic_variables(i, j)) {
-                    std::cout << get_node_name(supply_relation[i]);
-                    std::cout << "->";
-                    std::cout << get_node_name(demand_relation[j]);
-                    std::cout << ": " << tableau(i, j) << '\n';
+
+            tableau(tableau.rows() - 1, tableau.cols() - 1) = 0;
+            for (ssize_t i = 0; i < tableau.rows() - 1; i++) {
+                for (ssize_t j = 0; j < tableau.cols() - 1; j++) {
+                    if (basic_variables(i, j)) {
+                        if (costs(i, j) == INF) {
+                            tableau(tableau.rows() - 1, tableau.cols() - 1) = 0;
+                            break;
+                        }
+                        tableau(tableau.rows() - 1, tableau.cols() - 1) +=
+                            tableau(i, j) * costs(i, j);
+                    }
                 }
             }
         }
+
+        // RESULTADOS
+        std::cout << "Fo = " << tableau(tableau.rows() - 1, tableau.cols() - 1) << '\n';
+        for (ssize_t i = 0; i < tableau.rows() - 1; i++) {
+            for (ssize_t j = 0; j < tableau.cols() - 1; j++) {
+                if (basic_variables(i, j)) {
+                    std::cout << get_node_name(supply_relation[i]) << "->"
+                              << get_node_name(demand_relation[j]) << ": " << tableau(i, j) << '\n';
+                }
+            }
+        }
+        /////////////
     }
 
     void GraphProblem::build_hungarian_tableau(MtrxI& costs, std::vector<ssize_t>& supply_relation,
