@@ -1,0 +1,22 @@
+GRAPH
+
+Nodos
+    node I1 100
+    node I2 90
+    node I3 75
+    node I4 85
+    node T1 -15
+    node T2 -25
+    node T3 -40
+    node T4 -35
+    node T5 -5
+    node T6 -60
+
+Aristas
+    I1 > T2:45 T3:10 T4:15 
+    I2 > T1:80 T2:5 T4:20 T5:65 T6:70
+    I3 > T1:205 T3:95 T5:35 T6:2 
+    I4 > T2:100 T4:55 T5:105 T6:45
+
+Objetivo
+    TRANSPORTATION
