@@ -15,7 +15,7 @@ namespace optimization {
         void load_problem(std::ifstream& file);
 
        private:
-        const long long INF = std::numeric_limits<long long>::max() / 2;
+        const long long INF = std::numeric_limits<long long>::max() / 16;
 
         enum GProblem_T {
             NOT_ASSIGNED,
@@ -94,7 +94,10 @@ namespace optimization {
         void draw_lines(MtrxI const& costs, MtrxI& lines,
                         std::vector<ssize_t> const& match_col) const;
 
-        ssize_t find_min_lines(MtrxI const& costs, MtrxI& lines) const;
+        ssize_t find_min_lines(MtrxI const& costs, MtrxI& lines,
+                               std::vector<ssize_t>& match_col) const;
+
+        ssize_t find_assignation(MtrxI const& rcosts, MtrxI& lines) const;
 
         bool try_kuhn(ssize_t i, std::vector<bool>& used, std::vector<ssize_t>& match_col,
                       MtrxI const& costs) const;

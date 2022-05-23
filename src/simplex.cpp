@@ -1,9 +1,8 @@
 #include "simplex.h"
 
-#include <Python.h>
-
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <stack>
 
 #include "config.h"
@@ -322,9 +321,6 @@ namespace optimization {
         if (!(objective_function.coefficients.cols())) {
             throw("Archivo de problema invalido");
         }
-        if (VERBOSE) {
-            log();
-        }
         return;
     }
 
@@ -353,52 +349,49 @@ namespace optimization {
     }
 
     void LinearProblem::log() const {
-        std::cout << name << std::endl;
-        std::cout << std::endl;
+        std::cout << name << '\n';
+        std::cout << '\n';
 
-        std::cout << "Funcion objetivo:" << std::endl;
+        std::cout << "Funcion objetivo:" << '\n';
         objective_function.log();
-        std::cout << std::endl;
+        std::cout << '\n';
 
         std::vector<Constraint>::const_iterator it;
         if (constraints.size()) {
-            std::cout << "Restricciones: " << constraints.size() << std::endl;
+            std::cout << "Restricciones: " << constraints.size() << '\n';
             for (it = constraints.begin(); it != constraints.end(); it++) {
                 it->log();
             }
-            std::cout << std::endl;
+            std::cout << '\n';
         }
 
         if (no_negative_constraints.size()) {
             std::cout << "Restriciones de no negatividad: " << no_negative_constraints.size()
-                      << std::endl;
+                      << '\n';
             for (it = no_negative_constraints.begin(); it != no_negative_constraints.end(); it++) {
                 it->log();
             }
-            std::cout << std::endl;
+            std::cout << '\n';
         }
 
         if (integer_constraints.size()) {
-            std::cout << "Variables enteras: " << integer_constraints.size() << std::endl;
+            std::cout << "Variables enteras: " << integer_constraints.size() << '\n';
             for (it = integer_constraints.begin(); it != integer_constraints.end(); it++) {
                 it->log();
             }
-            std::cout << std::endl;
+            std::cout << '\n';
         }
 
         if (binary_constraints.size()) {
-            std::cout << "Variables binarias: " << binary_constraints.size() << std::endl;
+            std::cout << "Variables binarias: " << binary_constraints.size() << '\n';
             for (it = binary_constraints.begin(); it != binary_constraints.end(); it++) {
                 it->log();
             }
-            std::cout << std::endl;
+            std::cout << '\n';
         }
     }
 
     void LinearProblem::process_to_standard_form() {
-        if (VERBOSE) {
-            std::cout << "# Transformando a forma estandar... ";
-        }
         // Creamos una copia para graficar
         if (solution_dimension == 2) {
             plt_cnstrnts     = constraints;
@@ -599,12 +592,6 @@ namespace optimization {
                 throw("Error al transformar a la forma estandar 4");
             }
         }
-        // Actualizamos el nombre
-        name += " (Forma estandar)";
-        if (VERBOSE) {
-            std::cout << "hecho" << std::endl << std::endl;
-            log();
-        }
     }
 
     ssize_t LinearProblem::is_optimal(Mtrx const& tableau, ObjectiveFunction_T type, bool ignore,
@@ -659,11 +646,6 @@ namespace optimization {
             }
         }
         return min_idx;
-    }
-
-    void LinearProblem::print_tableu_itr(Mtrx tableau, size_t itr) const {
-        if (VERBOSE) std::cout << std::endl << "Tableau " << itr << ":\n" << tableau << std::endl;
-        return;
     }
 
     bool LinearProblem::two_phase() {
@@ -747,10 +729,8 @@ namespace optimization {
         }
         */
         // Fase uno
-        size_t  intrtn = 0;
         ssize_t enter_variable;
-        while (print_tableu_itr(tableau, intrtn++),
-               enter_variable = tmp_prblm.is_optimal(tableau, MIN, false, base),
+        while (enter_variable = tmp_prblm.is_optimal(tableau, MIN, false, base),
                enter_variable != -1) {
             ssize_t left_variable = tmp_prblm.min_ratio(tableau, enter_variable);
             if (tmp_prblm.feasible) {
@@ -773,12 +753,10 @@ namespace optimization {
                     }
                 }
             } else {
-                if (VERBOSE) puts("Problema infactible");
                 return false;
             }
         }
         if (tableau(0, n_clmns - 1) > EPSILON) {
-            if (VERBOSE) puts("Problema infactible");
             return false;
         }
         bool method_end = false;
@@ -811,7 +789,6 @@ namespace optimization {
                 }
             }
             while (
-                print_tableu_itr(tableau, intrtn++),
                 enter_variable = tmp_prblm.is_optimal(tableau, objective_function.type, true, base),
                 enter_variable != -1) {
                 ssize_t left_variable = tmp_prblm.min_ratio(tableau, enter_variable);
@@ -835,7 +812,6 @@ namespace optimization {
                         }
                     }
                 } else {
-                    if (VERBOSE) puts("Problema infactible");
                     return false;
                 }
             }
@@ -869,127 +845,113 @@ namespace optimization {
     }
 
     void LinearProblem::branch_and_bound() {
+        assert(std::numeric_limits<long double>::has_quiet_NaN);
+
         two_phase();
         log();
         if (feasible) {
-            std::cout << "# Problema factible" << std::endl;
+            std::cout << "# Problema factible" << '\n';
+            print_solution();
         } else {
-            std::cout << "# Problema no factible" << std::endl;
+            std::cout << "# Problema no factible" << '\n';
         }
-        print_solution();
         if (feasible) {
-            // Para verificar que el programa no se rompa
-            assert(static_cast<long long>(original_solution_dimension) ==
-                   integer_constraints[0].coefficients.cols());
             // Unimos todas las restricciones de variable entera
-            std::vector<Constraint>::iterator it;
-            Mtrx                              int_vars = Mtrx::Zero(1, original_solution_dimension);
-            for (it = integer_constraints.begin(); it != integer_constraints.end(); it++) {
-                int_vars += it->coefficients;
+            Mtrx integer_var{Mtrx::Zero(1, original_solution_dimension)};
+            for (auto it = integer_constraints.begin(); it != integer_constraints.end(); it++) {
+                integer_var += it->coefficients;
             }
             // Stack para recorido LIFO
             std::stack<LinearProblem> tree;
             // Elegimos el pivote
             for (size_t i = 0; i < original_solution_dimension; i++) {
                 // si la variable i debe ser entera y tiene solucion decimal
-                if (int_vars(i) && fmodl(solution(i), 1.0)) {
-                    Mtrx tmp_mtrx = Mtrx::Zero(1, original_solution_dimension);
-                    tmp_mtrx(i)   = 1.0;
-                    // Creamos el subproblema 2
-                    LinearProblem tmp = *this;
-                    tmp.add_constraint(
-                        Constraint(tmp_mtrx, GREATER_EQUAL, floor(solution(i)) + 1.0));
-                    tree.push(tmp);
+                if (integer_var(i) && fmodl(solution(i), 1.0)) {
+                    Mtrx tmp_mtrx{Mtrx::Zero(1, original_solution_dimension)};
+                    tmp_mtrx(i) = 1.0;
                     // Creamos el subproblema 1
-                    tmp = *this;
-                    tmp.add_constraint(Constraint(tmp_mtrx, LESS_EQUAL, floor(solution(i))));
-                    tree.push(tmp);
+                    {
+                        LinearProblem tmp{*this};
+                        tmp.add_constraint(
+                            Constraint(tmp_mtrx, GREATER_EQUAL, floor(solution(i)) + 1.0));
+                        tree.push(tmp);
+                    }
+                    // Creamos el subproblema 2
+                    {
+                        LinearProblem tmp{*this};
+                        tmp.add_constraint(Constraint(tmp_mtrx, LESS_EQUAL, floor(solution(i))));
+                        tree.push(tmp);
+                    }
                     break;
                 }
             }
             // Metodo de bnb
-            long double bound{0};
-            bool        bound_found = false;
+            long double bound = std::numeric_limits<long double>::quiet_NaN();
             while (!tree.empty()) {
                 LinearProblem tmp = tree.top();
                 tree.pop();
                 tmp.two_phase();
 
                 tmp.log();
-                if (feasible) {
-                    std::cout << "# Problema factible" << std::endl;
-                } else {
-                    std::cout << "# Problema no factible" << std::endl;
-                }
-                tmp.print_solution();
                 if (tmp.feasible) {
-                    if (bound_found) {
-                        if (objective_function.type == MAX && bound > tmp.solution_value) {
-                            continue;
-                        } else if (objective_function.type == MIN && bound < tmp.solution_value) {
-                            continue;
-                        }
+                    std::cout << "# Problema factible" << '\n';
+                    tmp.print_solution();
+                } else {
+                    std::cout << "# Problema no factible" << '\n';
+                }
+
+                if (tmp.feasible) {
+                    if (!std::isnan(bound) &&
+                        ((objective_function.type == MAX && bound > tmp.solution_value) ||
+                         (objective_function.type == MIN && bound < tmp.solution_value))) {
+                        continue;
                     }
-                    bool factible_solution = true;
-                    bool ignore;
+                    bool integer_solution = true;
                     for (size_t i = 0; i < original_solution_dimension; i++) {
-                        if (int_vars(i) && fmodl(tmp.solution(i), 1.0)) {
-                            factible_solution = false;
-                            ignore            = false;
-                            Mtrx tmp_mtrx     = Mtrx::Zero(1, original_solution_dimension);
-                            tmp_mtrx(i)       = 1.0;
-                            // Creamos el subproblema 2
-                            LinearProblem tmp_0 = tmp;
-                            Constraint    aux;
-                            aux = Constraint(tmp_mtrx, GREATER_EQUAL, floor(tmp.solution(i)) + 1.0);
-                            for (it = tmp.constraints.begin(); it != tmp.constraints.end(); it++) {
-                                if ((*it) == aux) {
-                                    factible_solution = true;
-                                    ignore            = true;
+                        if (integer_var(i) && fmodl(tmp.solution(i), 1.0)) {
+                            integer_solution = false;
+
+                            bool ignore = false;
+                            Mtrx tmp_mtrx{Mtrx::Zero(1, original_solution_dimension)};
+                            tmp_mtrx(i) = 1.0;
+
+                            Constraint constraint_1{
+                                Constraint(tmp_mtrx, GREATER_EQUAL, floor(tmp.solution(i)) + 1.0)};
+                            Constraint constraint_2{Constraint(
+                                Constraint(tmp_mtrx, LESS_EQUAL, floor(tmp.solution(i))))};
+                            // Revisamos que no estemos agregando la misma restriccion
+                            for (auto it = tmp.constraints.begin(); it != tmp.constraints.end();
+                                 it++) {
+                                if ((*it) == constraint_1 || (*it) == constraint_2) {
+                                    ignore = true;
                                     break;
                                 }
                             }
-                            if (ignore) continue;
-                            tmp_0.add_constraint(aux);
-                            tree.push(tmp_0);
-                            // Creamos el subproblema 1
-                            tmp_0 = tmp;
-                            aux   = Constraint(tmp_mtrx, LESS_EQUAL, floor(tmp.solution(i)));
-                            for (it = tmp.constraints.begin(); it != tmp.constraints.end(); it++) {
-                                if ((*it) == aux) {
-                                    factible_solution = true;
-                                    ignore            = true;
-                                    break;
+                            if (!ignore) {
+                                {
+                                    LinearProblem buffer{tmp};
+                                    buffer.add_constraint(constraint_1);
+                                    tree.push(buffer);
                                 }
+                                {
+                                    LinearProblem buffer{tmp};
+                                    buffer.add_constraint(constraint_2);
+                                    tree.push(buffer);
+                                }
+                                break;
+                            } else {
+                                integer_solution = true;
+                                continue;
                             }
-                            if (ignore) continue;
-                            tmp_0.add_constraint(aux);
-                            tree.push(tmp_0);
-                            break;
                         }
                     }
-                    if (factible_solution) {
-                        assert(solution.cols() == tmp.solution.cols());
-                        if (!bound_found) {
-                            solution_value = tmp.solution_value;
-                            solution       = tmp.solution;
-                            bound          = solution_value;
-                            bound_found    = true;
-                        } else {
-                            if (objective_function.type == MAX && bound < tmp.solution_value) {
-                                // Cota inferior
-                                solution_value = tmp.solution_value;
-                                solution       = tmp.solution;
-                                bound          = solution_value;
-                            } else if (objective_function.type == MIN &&
-                                       bound > tmp.solution_value) {
-                                // Cota superior
-                                solution_value = tmp.solution_value;
-                                solution       = tmp.solution;
-                                bound          = solution_value;
-                            }
-                        }
-                        // Solo se esta prendiendo la primera vez que encuentra una cota
+                    if (integer_solution &&
+                        (std::isnan(bound) ||
+                         (objective_function.type == MAX && bound < tmp.solution_value) ||
+                         (objective_function.type == MIN && bound > tmp.solution_value))) {
+                        solution_value = tmp.solution_value;
+                        solution       = tmp.solution;
+                        bound          = solution_value;
                     }
                 }
             }
@@ -1009,91 +971,11 @@ namespace optimization {
         return;
     }
 
-    void LinearProblem::plot() const {
-        // Variables auxiliares
-        std::stringstream buffer;
-        std::string       bffr_aux;
-        std::cout << "Graficando...";
-
-        // Creamos la configuracion inicial del script
-        std::string script(
-            "import numpy as np\n"
-            "import matplotlib.pyplot as plt\n"
-            "plt.axhline(color = 'black', linewidth = 0.93)\n"
-            "plt.axvline(color = 'black', linewidth = 0.93)\n"
-            "plt.xlabel('x')\n"
-            "plt.ylabel('y')\n");
-
-        // Configuramos el rango en el que vamos a graficar
-        buffer.str(std::string());
-        buffer << "x = np.linspace(" << solution(0) << " - 1000, " << solution(0) << " + 1000)\n";
-        buffer << "plt.xlim(" << solution(0) << " - 1000, " << solution(0) << " + 1000)\n";
-        bffr_aux = buffer.str();
-        script += bffr_aux;
-
-        // Generamos la funcion de cada restricccion
-        size_t aux = plt_cnstrnts.size();
-        for (size_t i = 0; i < aux; i++) {
-            buffer.str(std::string());
-            if (plt_cnstrnts[i].coefficients(1)) {
-                buffer << "y" << i;
-                buffer << " = ";
-                buffer << "((" << plt_cnstrnts[i].value << ")-(" << plt_cnstrnts[i].coefficients(0)
-                       << ")*x)/(" << plt_cnstrnts[i].coefficients(1) << ")\n";
-                buffer << "plt.plot(x, y" << i;
-            } else {
-                buffer << "plt.axvline(x = "
-                       << plt_cnstrnts[i].value / plt_cnstrnts[i].coefficients(0)
-                       << ", color = next(plt.gca()._get_lines.prop_cycler)['color']";
-            }
-            buffer << ", label = '" << plt_cnstrnts[i].coefficients(0) << "x" << std::showpos
-                   << plt_cnstrnts[i].coefficients(1) << std::noshowpos << "y";
-            if (plt_cnstrnts[i].type == EQUAL) {
-                buffer << "=";
-            } else if (plt_cnstrnts[i].type == LESS_EQUAL) {
-                buffer << "≤";
-            } else {
-                buffer << "≥";
-            }
-            buffer << plt_cnstrnts[i].value << "')\n";
-
-            bffr_aux = buffer.str();
-            script += bffr_aux;
-        }
-
-        // Generamos la funcion de la funcion objetivo
-        buffer.str(std::string());
-        buffer << "yz"
-               << " = "
-               << "((" << solution_value << ")-(" << plt_objctv_fnctn.coefficients(0) << ")*x)/("
-               << plt_objctv_fnctn.coefficients(1) << ")\n"
-               << "plt.plot(x, yz, label = 'Z=" << solution_value << "', color = 'black')\n";
-        bffr_aux = buffer.str();
-        script += bffr_aux;
-
-        // Graficamos el punto de la solucion
-        buffer.str(std::string());
-        buffer << "plt.plot(" << solution(0) << ", " << solution(1) << ", 'o', label = '("
-               << solution(0) << ", " << solution(1) << ")')\n";
-        bffr_aux = buffer.str();
-        script += bffr_aux;
-
-        // Ejecutamos el script
-        Py_Initialize();
-        PyRun_SimpleString(script.c_str());
-        PyRun_SimpleString(
-            "plt.grid()\n"
-            "plt.legend()\n"
-            "plt.show()\n");
-        std::cout << "hecho\n";
-        Py_Finalize();
-    }
-
     void LinearProblem::print_solution() const {
-        std::cout << "Solucion:" << std::endl;
-        std::cout << "Z  =\t" << solution_value << std::endl;
+        std::cout << "Solucion:" << '\n';
+        std::cout << "Z  =\t" << solution_value << '\n';
         for (size_t i = 0; i < original_solution_dimension; i++) {
-            std::cout << variables[i]->name << " =\t" << solution(i) << std::endl;
+            std::cout << variables[i]->name << " =\t" << solution(i) << '\n';
         }
         puts(
             "######################################################################################"

@@ -79,7 +79,6 @@ namespace optimization {
         void set_objective_function(ObjectiveFunction const& objective_function);
 
         void log() const;
-        void plot() const;
         void print_solution() const;
         void print_tableu_itr(Mtrx tableau, size_t itr) const;
 

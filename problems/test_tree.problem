@@ -1,22 +1,23 @@
 GRAPH
-
 Nodos
-    node N1 
-    node N2 
+    node N1
+    node N2
     node N3
     node N4
     node N5
     node N6
     node N7
-
+    node N8
+    node N9
 Aristas
-    N1 > N2:5 N3:1
-    N2 > N3:2 N4:5 N5:8 N6:6
-    N3 > N4:6 N5:7
-    N4 > N1:9 N3:7 N6:4
-    N5 > N4:3 N6:5 N7:9
-    N6 > N2:7 N7:2
-    N7 > N4:6
-
+    N1 > N2:10 N3:12 N4:8 N6:6 N8:4 N9:2
+    N2 > N6:14 N7:3
+    N3 > N1:8 N2:10 N4:5 N5:3 N9:2
+    N4 > N2:5 N3:10
+    N5 > N2:2 N4:8 N6:10 N7:4 N9:6
+    N6 > N3:5 N5:2 N8:5 N9:4
+    N7 > N2:6 N4:10 N6:10 N8:10
+    N8 > N2:9 N3:6 N4:10 N5:2 N6:10 N9:10
+    N9 > N1:12 N4:12 N5:2 N6:7 N7:5 N8:2
 Objetivo
     MIN_SPANNING_TREE

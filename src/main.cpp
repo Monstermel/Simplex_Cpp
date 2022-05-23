@@ -17,6 +17,7 @@ using namespace optimization;
 
 int main(int argc, char* argv[]) {
     (void) argc;
+
     std::ifstream file(argv[1]);
     if (file.is_open()) {
         std::string buffer_init;

@@ -1,5 +1,6 @@
 #include "graph.h"
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <queue>
@@ -413,16 +414,15 @@ namespace optimization {
                     costs(current.first, current.second) - U_values[current.first];
             }
         }
-        MtrxI    shadow_prices = MtrxI::Zero(num_supply_pnts, num_demand_pnts);
-        pair_idx optimal_test  = {0, 0};
+        pair_idx optimal_test{0, 0};
+        MtrxI    shadow_prices{MtrxI::Zero(num_supply_pnts, num_demand_pnts)};
         // Calculamos los precios sombra
         for (ssize_t i = 0; i < shadow_prices.rows(); i++) {
             for (ssize_t j = 0; j < shadow_prices.cols(); j++) {
                 shadow_prices(i, j) = U_values[i] + V_values[j] - costs(i, j);
-                optimal_test =
-                    (shadow_prices(i, j) < shadow_prices(optimal_test.first, optimal_test.second))
-                        ? optimal_test
-                        : pair_idx{i, j};
+                if (shadow_prices(optimal_test.first, optimal_test.second) < shadow_prices(i, j)) {
+                    optimal_test = pair_idx{i, j};
+                }
             }
         }
         if (VERBOSE) {
@@ -430,7 +430,7 @@ namespace optimization {
         }
 
         if (0 < shadow_prices(optimal_test.first, optimal_test.second)) {
-            return {optimal_test.first, optimal_test.second};
+            return optimal_test;
         }
         return {-1, -1};
     }
@@ -441,20 +441,26 @@ namespace optimization {
         typedef std::pair<pair_idx, pair_idx> Pair_Pairs;
         typedef std::vector<Pair_Pairs>       Vector_Pairs;
         typedef std::vector<Vector_Pairs>     Vector_Vector_Pairs;
-        MtrxI visited                  = MtrxI::Zero(num_supply_pnts, num_demand_pnts);
+
+        MtrxI visited{MtrxI::Zero(num_supply_pnts, num_demand_pnts)};
         visited(idx.first, idx.second) = 1;
+
         std::queue<pair_idx> Queue;
         Queue.push(idx);
+
         Vector_Vector_Pairs parents;
         parents.push_back({{idx, {-1, -1}}});
+
         pair_idx end_cycle;
         while (!Queue.empty()) {
-            pair_idx current = Queue.front();
+            pair_idx current{Queue.front()};
             Queue.pop();
+
             if (static_cast<long long>(parents.size()) !=
                 visited(current.first, current.second) + 1) {
                 parents.push_back(Vector_Pairs());
             }
+
             for (ssize_t i = 0; i < basic_variables.rows(); i++) {
                 if (i == current.first) {
                     continue;
@@ -517,6 +523,7 @@ namespace optimization {
                 }
             }
         }
+
         first_half.pop_back();
         loop.insert(loop.end(), second_half.rbegin(), second_half.rend());
         loop.insert(loop.end(), first_half.begin(), first_half.end());
@@ -540,7 +547,6 @@ namespace optimization {
         MtrxI                costs(num_supply_pnts, num_demand_pnts);
         build_tableau(costs, tableau, supply_relation, demand_relation);
         MtrxB basic_variables{MtrxB::Zero(num_supply_pnts, num_demand_pnts)};
-        // En realidad es el metodo EsquinaNO mientras encuentro el error
         vogel_method(costs, tableau, basic_variables);
 
         if (VERBOSE) {
@@ -587,18 +593,15 @@ namespace optimization {
 
             basic_variables(min_obv.first, min_obv.second)     = false;
             basic_variables(enter_var.first, enter_var.second) = true;
-
-            tableau(tableau.rows() - 1, tableau.cols() - 1) = 0;
-            for (ssize_t i = 0; i < tableau.rows() - 1; i++) {
-                for (ssize_t j = 0; j < tableau.cols() - 1; j++) {
-                    if (basic_variables(i, j)) {
-                        if (costs(i, j) == INF) {
-                            tableau(tableau.rows() - 1, tableau.cols() - 1) = 0;
-                            break;
-                        }
-                        tableau(tableau.rows() - 1, tableau.cols() - 1) +=
-                            tableau(i, j) * costs(i, j);
+        }
+        tableau(tableau.rows() - 1, tableau.cols() - 1) = 0;
+        for (ssize_t i = 0; i < tableau.rows() - 1; i++) {
+            for (ssize_t j = 0; j < tableau.cols() - 1; j++) {
+                if (basic_variables(i, j)) {
+                    if (costs(i, j) == INF) {
+                        tableau(tableau.rows() - 1, tableau.cols() - 1) = 0;
                     }
+                    tableau(tableau.rows() - 1, tableau.cols() - 1) += tableau(i, j) * costs(i, j);
                 }
             }
         }
@@ -724,10 +727,11 @@ namespace optimization {
         }
     }
 
-    ssize_t GraphProblem::find_min_lines(MtrxI const& costs, MtrxI& lines) const {
+    ssize_t GraphProblem::find_min_lines(MtrxI const& costs, MtrxI& lines,
+                                         std::vector<ssize_t>& match_col) const {
         // Kuhn's Algorithm for Maximum Bipartite Matching
-        std::vector<ssize_t> match_col;
-        std::vector<bool>    used;
+        std::vector<bool> used;
+        match_col.clear();
         match_col.assign(costs.rows(), -1);
 
         ssize_t num_lines = 0;
@@ -743,6 +747,7 @@ namespace optimization {
 
         return num_lines;
     }
+
 
     /*
     Solucion correcta: 8 lineas
@@ -779,11 +784,12 @@ namespace optimization {
                       << "###################################################################\n";
         }
 
-        MtrxI lines;
-        MtrxI rcosts{costs};
+        MtrxI                lines;
+        MtrxI                rcosts{costs};
+        std::vector<ssize_t> match_col;
         subtract_min(rcosts);
-        for (ssize_t min_lines = find_min_lines(rcosts, lines); min_lines != rcosts.rows();
-             min_lines         = find_min_lines(rcosts, lines)) {
+        for (ssize_t min_lines                     = find_min_lines(rcosts, lines, match_col);
+             min_lines != rcosts.rows(); min_lines = find_min_lines(rcosts, lines, match_col)) {
             if (VERBOSE) {
                 std::cout
                     << "Costos reducidos:\n"
@@ -796,14 +802,11 @@ namespace optimization {
             long long min_element = -1;
             for (ssize_t i = 0; i < rcosts.rows(); i++) {
                 for (ssize_t j = 0; j < rcosts.cols(); j++) {
-                    if (min_element == -1 && !lines(i, j)) {
-                        min_element = rcosts(i, j);
-                    } else if (!lines(i, j) && rcosts(i, j) < min_element) {
+                    if (!lines(i, j) && (min_element == -1 || rcosts(i, j) < min_element)) {
                         min_element = rcosts(i, j);
                     }
                 }
             }
-
 
             for (ssize_t i = 0; i < rcosts.rows(); i++) {
                 for (ssize_t j = 0; j < rcosts.cols(); j++) {
@@ -823,19 +826,11 @@ namespace optimization {
                       << "###################################################################\n";
         }
 
-        long long         FO       = 0;
-        MtrxB             solution = MtrxB::Zero(costs.rows(), costs.cols());
-        std::vector<bool> row_avalible(costs.rows(), true);
-        std::vector<bool> col_avalible(costs.cols(), true);
-        for (ssize_t i = 0; i < solution.rows(); i++) {
-            for (ssize_t j = 0; j < solution.cols(); j++) {
-                if (!rcosts(i, j) && row_avalible[i] && col_avalible[j]) {
-                    FO += costs(i, j);
-                    solution(i, j)  = true;
-                    row_avalible[i] = false;
-                    col_avalible[j] = false;
-                }
-            }
+        long long FO = 0;
+        MtrxB     solution{MtrxB::Zero(costs.rows(), costs.cols())};
+        for (ssize_t j = 0; j < solution.cols(); j++) {
+            FO += costs(match_col[j], j);
+            solution(match_col[j], j) = true;
         }
 
         if (VERBOSE) {

@@ -1,22 +1,30 @@
 GRAPH
 
 Nodos
-    node MP 1
-    node AP 1
-    node GW 1
-    node CJ 1
-    node JL 1
-    node LIBRE -1
-    node MARIPOSA -1
-    node DORSO -1
-    node PECHO -1
+    node A1 1
+    node A2 1
+    node A3 1 
+    node A4 1
+    node A5 1
+    node A6 1
+    node A7 1
+    node B1 -1
+    node B2 -1
+    node B3 -1
+    node B4 -1
+    node B5 -1
+    node B6 -1
+    node B7 -1
 
 Aristas
-    MP > LIBRE:47 MARIPOSA:50 DORSO:57 PECHO:57
-    AP > LIBRE:48 MARIPOSA:52 DORSO:52 PECHO:62
-    GW > LIBRE:50 MARIPOSA:55 DORSO:54 PECHO:59
-    CJ > LIBRE:52 MARIPOSA:54 DORSO:55 PECHO:60
-    JL > LIBRE:51 MARIPOSA:51 DORSO:53 PECHO:58
+    A1 > B1:6  B2:11 B3:7  B4:9  B5:18 B6:22 B7:19
+    A2 > B1:25 B2:18 B3:19 B4:9  B5:7  B6:25 B7:14
+    A3 > B1:11 B2:7  B3:20 B4:19 B5:15 B6:17 B7:14
+    A4 > B1:23 B2:19 B3:8  B4:13 B5:15 B6:6  B7:5
+    A5 > B1:24 B2:15 B3:11 B4:6  B5:18 B6:8  B7:9
+    A6 > B1:7  B2:22 B3:13 B4:7  B5:24 B6:14 B7:12
+    A7 > B1:22 B2:18 B3:15 B4:17 B5:21 B6:8  B7:12
+
 
 Objetivo
     ASSIGNMENT

@@ -8,10 +8,8 @@ find_package(Python3 REQUIRED COMPONENTS Development)
 
 include_directories("include/")
 include_directories("${Eigen_INCLUDE_DIRS}/")
-include_directories("${Python3_INCLUDE_DIRS}/")
-link_directories("${Python3_LIBRARY_DIRS}/")
 
-add_executable(solver 
+add_executable(solver
     src/columnset.cpp
     src/constraint.cpp
     src/main.cpp
@@ -20,5 +18,6 @@ add_executable(solver
     src/variable.cpp
     src/graph.cpp)
 
-target_link_libraries (solver ${Python3_LIBRARIES})
+target_link_libraries(solver -static)
+
 

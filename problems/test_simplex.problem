@@ -4,8 +4,8 @@ Informacion
 2
 
 Variables
-0 x1 inf
-0 x2 inf
+float  x1 0 inf
+float  x2 0 inf
 
 Restricciones
 1 0 < 4

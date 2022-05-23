@@ -1,0 +1,25 @@
+GRAPH
+Nodos
+    node O1 65
+    node O2 68
+    node O3 80
+    node T1
+    node T2
+    node D1 -31
+    node D2 -36
+    node D3 -42
+    node D4 -64
+Aristas
+    O1 > T1:10 T2:10 D1:14 D2:17 D3:10 D4:11
+    O2 > T1:7  T2:11 D1:15 D2:19 D3:20 D4:14
+    O3 > T1:12 T2:12 D1:22 D2:14 D3:12 D4:15
+    T1 >       T2:6  D1:10 D2:12 D3:8  D4:15
+    T2 > T1:9        D1:15 D2:5  D3:14 D4:7
+Objetivo
+    TRANSPORTATION
+
+
+
+
+
+
