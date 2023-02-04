@@ -1,4 +1,4 @@
-# Simplex_cpp
+# Simplex_Cpp
 
 A C++ program to solve problems related to operation research. It has built-in several algorithms:
 - Simplex (Two phases method)
