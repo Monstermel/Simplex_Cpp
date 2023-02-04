@@ -1,21 +1,15 @@
 # Simplex_cpp
 
-Proyecto final del curso de Optimizacion II impartido por García Jolly Rafael.
-Algortimos implementados:
-- Simplex (dos fases)
+A C++ program to solve problems related to operation research. It has built-in several algorithms:
+- Simplex (Two phases method)
 - Branch and Bound
-- Simplex de transporte
-- Metodo hungaro
-- Arbol de expancion minima
-- Algoritmo de Dijkstra
-- Algoritmo de Floyd
-- Flujo maximo
+- Transport Simplex
+- Hungarian Method
+- Minimun spanning tree
+- Dijkstra
+- Floyd
+- Max flow
 
-Autores:
-- Abreu Alvarez Jose Antonio
-- Avelar Alvarado Julio Cesar
-- Gómez Vega Guadalupe
-- Jiménez Martínez Ana Cecilia
-- Rocha Cadena Andres Gabriel
+The program works reading from a .problem file and which also has a its own syntax. There are several examples in the problems directory.
 
-
+This project started as part of my operation research course. I enjoyed and learnt a lot throught it so now I'am planning to turn it into an C++ library.
